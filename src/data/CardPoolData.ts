@@ -1,70 +1,59 @@
 /**
- * CardPoolData.ts - 奖励卡池数据
+ * CardPoolData.ts - 卡牌奖励池
+ * 按章节和稀有度生成奖励选项
  */
 
-export interface CardPoolEntry {
-  templateId: string;
-  weight: number;
-  minChapter: number;
-}
-
-export const CHAPTER_CARD_POOLS: CardPoolEntry[][] = [
-  // 第一章卡池
-  [
-    { templateId: 'strike', weight: 10, minChapter: 1 },
-    { templateId: 'defend', weight: 10, minChapter: 1 },
-    { templateId: 'quickSlash', weight: 8, minChapter: 1 },
-    { templateId: 'heavyStrike', weight: 5, minChapter: 1 },
-    { templateId: 'cleave', weight: 3, minChapter: 1 },
-    { templateId: 'ironSkin', weight: 3, minChapter: 1 },
-    { templateId: 'meditate', weight: 2, minChapter: 1 },
-    { templateId: 'healingLight', weight: 2, minChapter: 1 },
-  ],
-  // 第二章卡池
-  [
-    { templateId: 'strike', weight: 8, minChapter: 1 },
-    { templateId: 'defend', weight: 8, minChapter: 1 },
-    { templateId: 'heavyStrike', weight: 6, minChapter: 1 },
-    { templateId: 'cleave', weight: 4, minChapter: 1 },
-    { templateId: 'ironSkin', weight: 4, minChapter: 1 },
-    { templateId: 'meditate', weight: 3, minChapter: 1 },
-    { templateId: 'healingLight', weight: 3, minChapter: 1 },
-    { templateId: 'doubleStrike', weight: 2, minChapter: 2 },
-    { templateId: 'exhaustStrike', weight: 1, minChapter: 2 },
-  ],
-  // 第三章卡池
-  [
-    { templateId: 'heavyStrike', weight: 8, minChapter: 1 },
-    { templateId: 'cleave', weight: 6, minChapter: 1 },
-    { templateId: 'ironSkin', weight: 6, minChapter: 1 },
-    { templateId: 'meditate', weight: 4, minChapter: 1 },
-    { templateId: 'healingLight', weight: 4, minChapter: 1 },
-    { templateId: 'doubleStrike', weight: 3, minChapter: 2 },
-    { templateId: 'exhaustStrike', weight: 2, minChapter: 2 },
-  ],
-];
+import { CardDatabase } from '../cards/CardDatabase';
+import { Rarity } from '../cards/CardSystem';
 
 /**
- * 根据章节生成奖励卡牌（3选1）
+ * 生成战斗奖励卡牌（3选1）
+ * @param chapter 当前章节（影响稀有度概率）
+ * @param nodeType 节点类型（BOSS奖励更好）
  */
-export function generateCardRewards(chapter: number): string[] {
-  const pool = CHAPTER_CARD_POOLS[Math.min(chapter - 1, CHAPTER_CARD_POOLS.length - 1)];
-  const filtered = pool.filter(e => e.minChapter <= chapter);
+export function generateCardRewards(chapter: number, nodeType: string = 'BATTLE'): string[] {
+  const allCards = Object.values(CardDatabase);
 
-  const totalWeight = filtered.reduce((sum, e) => sum + e.weight, 0);
-  const rewards: string[] = [];
+  // 按稀有度加权
+  const rarityWeight: Record<Rarity, number> = {
+    [Rarity.COMMON]: 60,
+    [Rarity.RARE]: 30,
+    [Rarity.EPIC]: 8 + chapter * 2,
+    [Rarity.LEGENDARY]: 2 + chapter,
+  };
 
-  while (rewards.length < 3 && filtered.length > 0) {
-    let random = Math.random() * totalWeight;
-    for (let i = 0; i < filtered.length; i++) {
-      random -= filtered[i].weight;
-      if (random <= 0) {
-        rewards.push(filtered[i].templateId);
-        filtered.splice(i, 1);
+  // BOSS战提高稀有度
+  if (nodeType === 'BOSS') {
+    rarityWeight[Rarity.RARE] += 10;
+    rarityWeight[Rarity.EPIC] += 5;
+    rarityWeight[Rarity.LEGENDARY] += 3;
+  } else if (nodeType === 'ELITE') {
+    rarityWeight[Rarity.RARE] += 5;
+    rarityWeight[Rarity.EPIC] += 3;
+  }
+
+  // 加权随机选3张
+  const candidates: Array<{ id: string; weight: number }> = [];
+  for (const card of allCards) {
+    // 跳过基础卡
+    if (card.id === 'strike' || card.id === 'defend' || card.id === 'quickSlash') continue;
+    candidates.push({ id: card.id, weight: rarityWeight[card.rarity] || 10 });
+  }
+
+  const selected: string[] = [];
+  for (let i = 0; i < 3 && candidates.length > 0; i++) {
+    const totalWeight = candidates.reduce((sum, c) => sum + c.weight, 0);
+    let roll = Math.random() * totalWeight;
+
+    for (let j = 0; j < candidates.length; j++) {
+      roll -= candidates[j].weight;
+      if (roll <= 0) {
+        selected.push(candidates[j].id);
+        candidates.splice(j, 1);
         break;
       }
     }
   }
 
-  return rewards;
+  return selected;
 }

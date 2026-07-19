@@ -10,11 +10,13 @@ import { GameData } from '../data/GameData';
 
 export class RewardScene extends Phaser.Scene {
   private playerState!: any;
+  private nodeType: string = 'BATTLE';
 
   constructor() { super({ key: 'RewardScene' }); }
 
-  init(): void {
+  init(data: any): void {
     this.playerState = GameData.load() || GameData.createInitialPlayerState();
+    this.nodeType = data.nodeType || 'BATTLE';
   }
 
   create(): void {
@@ -53,7 +55,7 @@ export class RewardScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // 生成奖励卡牌
-    const rewardIds = generateCardRewards(this.playerState.currentChapter);
+    const rewardIds = generateCardRewards(this.playerState.currentChapter, this.nodeType);
     const rewards = rewardIds.map(id => CardDatabase[id]).filter(t => t);
 
     const cardW = 110;

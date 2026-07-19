@@ -10,13 +10,15 @@ import { DeckManager } from '../core/DeckManager';
 import { BattleEngine, BattleEvent, CardPlayResult } from '../combat/BattleEngine';
 import { Card, CardType } from '../cards/CardSystem';
 import { CardDatabase } from '../cards/CardDatabase';
-import { getEnemiesForNode } from '../core/EnemyDatabase';
+import { createEnemy } from '../core/EnemyDatabase';
 import { GameData } from '../data/GameData';
 import { BoardBattle, PositionType, InkStoneType } from '../core/BoardBattle';
+import { LevelConfig } from '../data/LevelData';
 
 interface BattleInitData {
   nodeType: string;
   nodeFloor: number;
+  levelConfig?: LevelConfig;
 }
 
 export class BattleScene extends Phaser.Scene {
@@ -62,15 +64,25 @@ export class BattleScene extends Phaser.Scene {
     this.player.maxHp = this.playerState.maxHp;
 
     // 初始化敌人
-    const enemyConfigs = getEnemiesForNode(
-      this.playerState.currentChapter,
-      data.nodeType,
-      data.nodeFloor
-    );
-    this.enemies = enemyConfigs.map((config, idx) => {
-      const enemy = new Enemy(`e${idx}`, config.name, config.hp, config.patterns);
-      return enemy;
-    });
+    if (data.levelConfig && data.levelConfig.enemies.length > 0) {
+      // 使用关卡配置的敌人列表
+      this.enemies = data.levelConfig.enemies.map((enemyId, idx) => {
+        try {
+          return createEnemy(enemyId);
+        } catch (e) {
+          // 如果敌人ID无效，创建一个默认敌人
+          console.warn(`Enemy not found: ${enemyId}, using default`);
+          return new Enemy(`e${idx}`, '墨滴怪', 20, [
+            { type: 'attack', value: 5, description: '撞击 5' }
+          ]);
+        }
+      });
+    } else {
+      // 回退：创建一个默认敌人
+      this.enemies = [new Enemy('e0', '墨滴怪', 20, [
+        { type: 'attack', value: 5, description: '撞击 5' }
+      ])];
+    }
 
     // 初始化牌库
     this.deck = new DeckManager();
@@ -676,17 +688,72 @@ export class BattleScene extends Phaser.Scene {
         this.playerState.hp = this.player.hp;
         this.playerState.maxHp = this.player.maxHp;
 
-        // 检查是否是BOSS战，如果是则进入下一章
+        // 检查是否是BOSS战
         if (this.nodeType === 'BOSS') {
-          GameData.onChapterComplete(this.playerState);
+          // 尝试进入下一章
+          const canAdvance = GameData.onChapterComplete(this.playerState);
+          
+          if (!canAdvance) {
+            // 已通关最终章，显示胜利画面
+            this.showVictoryScreen();
+            return;
+          }
         }
 
         GameData.save(this.playerState);
-        this.scene.start('RewardScene', { nodeFloor: this.engine.turnNumber });
+        this.scene.start('RewardScene', { 
+          nodeFloor: this.engine.turnNumber,
+          nodeType: this.nodeType 
+        });
       } else {
         GameData.deleteSave();
         this.scene.start('MenuScene');
       }
+    });
+  }
+
+  // ====== 通关胜利画面 ======
+  private showVictoryScreen(): void {
+    const victoryBg = this.add.rectangle(195, 422, 390, 844, 0x000000, 0.9);
+    
+    const titleText = this.add.text(195, 300, '通关！', {
+      fontSize: '48px',
+      color: '#ffd76b',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const subtitleText = this.add.text(195, 380, '墨境之主已被击败', {
+      fontSize: '20px',
+      color: '#e8d5b5',
+    }).setOrigin(0.5);
+
+    const descText = this.add.text(195, 440, '你已完成全部五章的冒险\n水墨世界恢复和平', {
+      fontSize: '16px',
+      color: '#a8a8a0',
+      align: 'center',
+    }).setOrigin(0.5);
+
+    const statsText = this.add.text(195, 520, `最终等级: ${this.playerState.level}\n最大生命: ${this.playerState.maxHp}\n最大行动点: ${this.playerState.maxAp}`, {
+      fontSize: '14px',
+      color: '#8ac8ff',
+      align: 'center',
+      lineSpacing: 4,
+    }).setOrigin(0.5);
+
+    // 返回主菜单按钮
+    const btnBg = this.add.rectangle(195, 620, 160, 40, 0x2a1a1a, 0.9);
+    btnBg.setStrokeStyle(2, 0x6a3a2a);
+    btnBg.setInteractive({ useHandCursor: true });
+    
+    const btnText = this.add.text(195, 620, '返回主菜单', {
+      fontSize: '16px',
+      color: '#e8c5a5',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    btnBg.on('pointerdown', () => {
+      GameData.deleteSave();
+      this.scene.start('MenuScene');
     });
   }
 }

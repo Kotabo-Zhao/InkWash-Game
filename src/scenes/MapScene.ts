@@ -7,11 +7,13 @@ import Phaser from 'phaser';
 import { MapGenerator, MapNode, NodeType } from '../map/MapNode';
 import { GameData } from '../data/GameData';
 import { CHAPTERS } from '../data/ChapterData';
+import { generateChapterLevels, LevelConfig } from '../data/LevelData';
 
 export class MapScene extends Phaser.Scene {
   private mapGen!: MapGenerator;
   private nodeCircles: Map<number, Phaser.GameObjects.GameObject[]> = new Map();
   private playerState!: any;
+  private levelConfigs: LevelConfig[] = [];
 
   constructor() { super({ key: 'MapScene' }); }
 
@@ -19,6 +21,7 @@ export class MapScene extends Phaser.Scene {
     this.playerState = GameData.load() || GameData.createInitialPlayerState();
     this.mapGen = new MapGenerator();
     this.mapGen.generate(this.playerState.currentChapter);
+    this.levelConfigs = generateChapterLevels(this.playerState.currentChapter);
   }
 
   create(): void {
@@ -172,12 +175,19 @@ export class MapScene extends Phaser.Scene {
     this.playerState.visitedNodes.push(node.id);
     GameData.save(this.playerState);
 
+    // 获取当前楼层的关卡配置
+    const levelConfig = this.levelConfigs[node.floor];
+
     // 根据节点类型进入不同场景
     switch (node.type) {
       case NodeType.BATTLE:
       case NodeType.ELITE:
       case NodeType.BOSS:
-        this.scene.start('BattleScene', { nodeType: node.type, nodeFloor: node.floor });
+        this.scene.start('BattleScene', {
+          nodeType: node.type,
+          nodeFloor: node.floor,
+          levelConfig: levelConfig
+        });
         break;
       case NodeType.EVENT:
         this.scene.start('EventScene', { nodeFloor: node.floor });
