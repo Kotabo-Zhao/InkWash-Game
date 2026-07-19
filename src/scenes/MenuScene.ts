@@ -116,8 +116,17 @@ export class MenuScene extends Phaser.Scene {
     GameData.deleteSave();
     const initialState = GameData.createInitialPlayerState();
     GameData.save(initialState);
-    // 开始新游戏时先显示第一章剧情
-    this.scene.start('StoryScene', { type: 'chapter_intro', chapter: 1 });
+    
+    // 检查是否已完成新手引导
+    const tutorialCompleted = localStorage.getItem('tutorial_completed') === 'true';
+    
+    if (!tutorialCompleted) {
+      // 首次游戏，先进入新手引导
+      this.scene.start('TutorialScene');
+    } else {
+      // 已完成引导，直接开始剧情
+      this.scene.start('StoryScene', { type: 'chapter_intro', chapter: 1 });
+    }
   }
 
   private continueGame(): void {
