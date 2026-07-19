@@ -1,71 +1,35 @@
-# 姿态参考图目录
+# 姿态参考图素材
 
-此目录用于存放从外部来源下载的姿态参考图，用于 VNCCS POSE STUDIO 的姿态迁移。
+用于 VNCCS Pose Studio 的 SAM 3D Body 姿态检测。
 
-## 用途
+## 素材列表
 
-- **输入**: 从免费素材网站下载的角色动作帧（任意风格）
-- **处理**: VNCCS POSE STUDIO 提取骨骼姿态
-- **输出**: 标准 OpenPose 格式姿态图（供 ControlNet 使用）
+### 真实人物照片（Pexels CC0）
 
-## 推荐素材来源
+| 文件 | 尺寸 | 用途 |
+|------|------|------|
+| `pose_idle_1.jpg` | 800x533 | 站立/待机姿势 |
+| `pose_action_1.jpg` | 800x534 | 太极动作 |
+| `pose_action_2.jpg` | 800x1066 | 武术姿势（竖版） |
+| `pose_action_3.jpg` | 800x1422 | 跳跃动作（竖版） |
+| `pose_attack_1.jpg` | 800x533 | 拳击攻击 |
 
-### 免费可商用素材
+## 来源
 
-1. **Kenney.nl** - CC0 游戏素材
-   - 角色动画包: https://kenney.nl/assets/category:2D
-   - 许可证: CC0 (公共领域)
+- **Pexels** (https://www.pexels.com/) - 免费商用，无需署名
+- 所有照片均为真实人物动作照片，包含完整人体骨骼姿态
+- 分辨率匹配角色参考图比例（887x1182）
 
-2. **itch.io** - 免费游戏资源
-   - 搜索 "sprite sheet CC0" 或 "character animation free"
-   - 注意查看具体许可证
+## 使用方式
 
-3. **OpenGameArt.org** - 开源游戏素材
-   - 角色动画分类: https://opengameart.org/art-search-advanced?keys=&field_art_type_tid%5B%5D=9
-   - 许可证: CC0 / GPL / OGA-BY
+1. 在 ComfyUI 中加载 VNCCS Pose Studio 工作流
+2. 使用 Pose Studio 的 "Import Image" 功能导入姿态图
+3. SAM 3D Body 会自动检测人体骨骼姿态
+4. 将检测到的姿态应用到 3D 人偶模型
+5. 导出 OpenPose 格式姿态图
 
-4. **Mixamo** - 3D 动作库
-   - 可导出 FBX 格式，用于 VNCCS POSE STUDIO
-   - 免费使用（需 Adobe 账号）
+## 后续扩展
 
-## 文件命名规范
-
-```
-{来源}_{角色类型}_{动作}_{方向}_{帧号}.png
-```
-
-示例:
-- `kenney_hero_idle_s_0.png`
-- `mixamo_warrior_attack_e_1.png`
-
-## 已下载素材
-
-### 1. Puny Characters (OpenGameArt)
-- **来源**: https://opengameart.org/content/puny-characters
-- **作者**: Shade
-- **许可证**: CC0
-- **尺寸**: 32x32 像素
-- **内容**: 8方向角色动画（idle, walk, attack, death）
-- **用途**: 测试 VNCCS 姿态提取
-
-### 2. Hero Knight (itch.io)
-- **来源**: https://luizmelo.itch.io/hero-knight
-- **作者**: LuizMelo
-- **许可证**: CC0
-- **尺寸**: 高分辨率精灵
-- **内容**: 动画帧（idle, run, attack, death）
-- **用途**: 主角动作参考
-
-## 下一步
-
-1. 下载更多高质量姿态参考图
-2. 使用 VNCCS POSE STUDIO 提取骨骼姿态
-3. 生成标准 OpenPose 格式图片
-4. 用于 ControlNet 驱动角色精灵生成
-
-## 注意事项
-
-- 所有下载的素材必须符合许可证要求
-- 优先使用 CC0 或明确标注可商用的素材
-- 保留原始文件以便追溯来源
-- 记录每个素材的作者和许可证信息
+- 从 Mixamo 下载 FBX 动画帧（需 Adobe 账号）
+- 从 Kenney.nl 下载高清精灵表（CC0）
+- 使用 Blender 渲染自定义姿态
