@@ -116,7 +116,8 @@ export class MenuScene extends Phaser.Scene {
     GameData.deleteSave();
     const initialState = GameData.createInitialPlayerState();
     GameData.save(initialState);
-    this.scene.start('MapScene');
+    // 开始新游戏时先显示第一章剧情
+    this.scene.start('StoryScene', { type: 'chapter_intro', chapter: 1 });
   }
 
   private continueGame(): void {

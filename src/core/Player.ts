@@ -46,6 +46,10 @@ export class Player {
     this.armor += amount;
   }
 
+  gainAp(amount: number): void {
+    this.ap += amount;
+  }
+
   onTurnStart(): void {
     this.ap = this.maxAp;
     this.armor = 0;

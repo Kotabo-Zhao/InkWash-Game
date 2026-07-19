@@ -9,6 +9,7 @@ import { EventScene } from './scenes/EventScene';
 import { ShopScene } from './scenes/ShopScene';
 import { RestScene } from './scenes/RestScene';
 import { RewardScene } from './scenes/RewardScene';
+import { StoryScene } from './scenes/StoryScene';
 import { SettingsOverlay } from './scenes/SettingsOverlay';
 import { PauseOverlay } from './scenes/PauseOverlay';
 import { UpgradeScene } from './scenes/UpgradeScene';
@@ -28,6 +29,7 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [
     BootScene,
     MenuScene,
+    StoryScene,
     MapScene,
     BattleScene,
     EventScene,

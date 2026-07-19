@@ -14,6 +14,7 @@ import { createEnemy } from '../core/EnemyDatabase';
 import { GameData } from '../data/GameData';
 import { BoardBattle, PositionType, InkStoneType } from '../core/BoardBattle';
 import { LevelConfig } from '../data/LevelData';
+import { RelicSystem } from '../core/RelicSystem';
 
 interface BattleInitData {
   nodeType: string;
@@ -26,6 +27,7 @@ export class BattleScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private deck!: DeckManager;
   private engine!: BattleEngine;
+  private relicSystem!: RelicSystem;
 
   // UI元素
   private hudContainer!: Phaser.GameObjects.Container;
@@ -57,6 +59,9 @@ export class BattleScene extends Phaser.Scene {
   init(data: BattleInitData): void {
     this.playerState = GameData.load() || GameData.createInitialPlayerState();
     this.nodeType = data.nodeType;
+
+    // 初始化遗物系统
+    this.relicSystem = new RelicSystem(this.playerState.relics || []);
 
     // 初始化玩家
     this.player = new Player(this.playerState.hp, this.playerState.maxAp);
@@ -110,6 +115,19 @@ export class BattleScene extends Phaser.Scene {
     this.createEndTurnButton();
 
     this.engine.startBattle(5);
+    
+    // 应用遗物战斗开始时效果
+    const relicEvents: string[] = [];
+    this.relicSystem.onBattleStart(this.player, relicEvents);
+    relicEvents.forEach(msg => this.addLog(msg));
+    
+    // 应用临时增益（消耗品）
+    if (this.playerState.startingArmor) {
+      this.player.gainArmor(this.playerState.startingArmor);
+      this.addLog(`护甲卷轴: +${this.playerState.startingArmor} 护甲`);
+      this.playerState.startingArmor = 0;
+    }
+    
     this.updateUI();
     this.addLog('战斗开始！选择卡牌后在棋盘上落子');
   }
@@ -424,6 +442,13 @@ export class BattleScene extends Phaser.Scene {
     const events = this.engine.executeEnemyTurns();
 
     for (const e of events) {
+      // 应用遗物伤害减免
+      if (e.type === 'damage' && e.target === 'player') {
+        const relicEvents: string[] = [];
+        const reducedDamage = this.relicSystem.onDamageTaken(e.value || 0, this.player, relicEvents);
+        e.value = reducedDamage;
+        relicEvents.forEach(msg => this.addLog(msg));
+      }
       this.addLog(e.description);
     }
 
@@ -431,6 +456,20 @@ export class BattleScene extends Phaser.Scene {
       this.onBattleEnd();
       return;
     }
+
+    // 新回合开始，触发遗物回合效果
+    const turnStartEvents: string[] = [];
+    this.relicSystem.onTurnStart(this.player, this.deck, this.engine.board, turnStartEvents);
+    turnStartEvents.forEach(msg => this.addLog(msg));
+
+    // 检查是否有敌人被击杀（触发玉佩效果）
+    this.enemies.forEach(enemy => {
+      if (!enemy.isAlive()) {
+        const killEvents: string[] = [];
+        this.relicSystem.onEnemyKilled(this.player, killEvents);
+        killEvents.forEach(msg => this.addLog(msg));
+      }
+    });
 
     this.updateUI();
   }
