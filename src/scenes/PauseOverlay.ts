@@ -89,6 +89,7 @@ export class PauseOverlay extends Phaser.Scene {
       maxAp: 3,
       gold: 100,
       deckTemplateIds: ['strike', 'strike', 'strike', 'strike', 'strike', 'defend', 'defend', 'defend', 'defend', 'quickSlash'],
+      relics: [],
       currentChapter: 1,
       currentNodeFloor: 0,
       visitedNodes: [],

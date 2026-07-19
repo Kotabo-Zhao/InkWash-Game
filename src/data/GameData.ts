@@ -9,11 +9,15 @@ export interface PlayerState {
   maxAp: number;
   gold: number;
   deckTemplateIds: string[];
+  relics: string[]; // 遗物ID列表
   currentChapter: number;
   currentNodeFloor: number;
   visitedNodes: number[];
   level: number;
   exp: number;
+  // 临时增益（战斗后清除）
+  startingArmor?: number;
+  tempDamageBonus?: number;
 }
 
 export interface GameSave {
@@ -41,6 +45,7 @@ export class GameData {
         'defend', 'defend', 'defend', 'defend',
         'quickSlash'
       ],
+      relics: [],
       currentChapter: 1,
       currentNodeFloor: 0,
       visitedNodes: [],

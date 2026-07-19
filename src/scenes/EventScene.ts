@@ -45,8 +45,8 @@ export class EventScene extends Phaser.Scene {
       fontSize: '13px', color: '#c8a85a',
     }).setOrigin(0, 0.5);
 
-    // 获取随机事件
-    const event = getRandomEvent();
+    // 获取随机事件（按章节筛选）
+    const event = getRandomEvent(this.playerState.currentChapter);
 
     // 事件标题（书法体）
     this.add.text(width / 2, 120, event.title, {
