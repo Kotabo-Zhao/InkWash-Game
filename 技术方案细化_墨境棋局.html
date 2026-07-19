@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>墨境棋局 — 技术方案细化（美术/QoS/稳定性/Debug）</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Cascadia Code', 'JetBrains Mono', 'PingFang SC', 'Microsoft YaHei', monospace;
+  background: #0f0f1a;
+  color: #e0e0e8;
+  line-height: 1.7;
+  padding: 40px;
+}
+h1 { font-size: 2em; text-align: center; margin-bottom: 6px; color: #e8d5b5; }
+h1 span { font-size: 0.6em; display: block; color: #888; margin-top: 4px; }
+.subtitle { text-align: center; color: #888; margin-bottom: 40px; font-size: 0.9em; }
+h2 {
+  font-size: 1.35em; margin: 36px 0 14px; padding-bottom: 6px;
+  border-bottom: 2px solid #2a2a3a; color: #c8b88a;
+}
+h3 { font-size: 1.1em; margin: 22px 0 10px; color: #a8c8e8; }
+h4 { font-size: 1em; margin: 16px 0 8px; color: #88b8d8; }
+p { margin: 6px 0 10px; }
+ul, ol { margin: 6px 0 10px 22px; }
+li { margin: 3px 0; }
+
+.card {
+  background: #1a1a2e; border-radius: 12px; padding: 20px; margin: 16px 0;
+  border: 1px solid #2a2a3e;
+}
+.card-title { font-size: 1.05em; color: #e8d5b5; margin-bottom: 10px; font-weight: 600; }
+
+table {
+  width: 100%; border-collapse: collapse; margin: 12px 0;
+  font-size: 0.88em;
+}
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #2a2a3e; }
+th { background: #1a1a2e; color: #c8b88a; font-weight: 600; white-space: nowrap; }
+tr:hover { background: #1e1e34; }
+
+pre {
+  background: #12121e; padding: 14px; border-radius: 8px;
+  font-size: 0.82em; overflow-x: auto; line-height: 1.5;
+  border: 1px solid #1e1e30;
+}
+code {
+  background: #1a1a2e; padding: 1px 5px; border-radius: 3px;
+  font-size: 0.88em; color: #ffd76b;
+}
+pre code { background: none; padding: 0; color: inherit; }
+
+.tag {
+  display: inline-block; padding: 1px 8px; border-radius: 4px;
+  font-size: 0.78em; margin: 1px;
+}
+.tag-red { background: #3a1520; color: #ff6b7a; }
+.tag-blue { background: #15203a; color: #6bb5ff; }
+.tag-green { background: #153a20; color: #6bff8a; }
+.tag-gold { background: #3a3015; color: #ffd76b; }
+.tag-purple { background: #2a153a; color: #c86bff; }
+.tag-cyan { background: #152a2a; color: #6bffff; }
+.tag-orange { background: #3a2a15; color: #ffb86b; }
+
+.highlight { color: #ffd76b; font-weight: 600; }
+.number { color: #6bb5ff; }
+
+.footer { text-align: center; color: #555; margin-top: 60px; font-size: 0.82em; }
+
+/* collapse */
+details {
+  margin: 8px 0; background: #141428; border-radius: 8px;
+  border: 1px solid #2a2a3e; padding: 8px 14px;
+}
+details summary {
+  cursor: pointer; color: #a8c8e8; font-weight: 500;
+  font-size: 0.9em;
+}
+details[open] { padding-bottom: 14px; }
+
+.warn-box {
+  background: #2a1a15; border: 1px solid #5a3a2a;
+  border-radius: 8px; padding: 12px 16px; margin: 10px 0;
+}
+.warn-box .title { color: #ff6b7a; font-weight: 600; }
+
+.ok-box {
+  background: #152a1a; border: 1px solid #2a5a3a;
+  border-radius: 8px; padding: 12px 16px; margin: 10px 0;
+}
+.ok-box .title { color: #6bff8a; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>墨境棋局 — 技术方案细化<span>美术素材 / QoS / 稳定性 / Debug · 代码级设计</span></h1>
+<p class="subtitle">v1.0 · 2026-07-17 · 跟随策划书 v1.0</p>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第一章：美术素材获取 -->
+<!-- ═══════════════════════════════════ -->
+<h2>一、美术素材获取方案</h2>
+
+<h3>1.1 素材全景清单</h3>
+<table>
+<tr><th>素材类型</th><th>数量（MVP）</th><th>规格</th><th>生成方式</th><th>优先级</th></tr>
+<tr><td>角色棋子（玩家 + 3种敌人）</td><td>4组 × 4方向 × 10帧</td><td>单帧200×200, PNG透明</td><td>AI精灵表生成</td><td>P0</td></tr>
+<tr><td>卡牌插画（30张MVP）</td><td>30张</td><td>400×560, PNG</td><td>AI文生图</td><td>P0</td></tr>
+<tr><td>棋盘背景（5×5格子）</td><td>1张</td><td>750×750, PNG</td><td>AI文生图+程序描边</td><td>P0</td></tr>
+<tr><td>UI元素（按钮/面板/图标）</td><td>~20个</td><td>多种尺寸, PNG/SVG</td><td>AI+程序微调</td><td>P0</td></tr>
+<tr><td>技能特效序列帧</td><td>~10组 × 8帧</td><td>128×128, PNG</td><td>AI+粒子系统替代</td><td>P1</td></tr>
+<tr><td>Boss动画（1个）</td><td>1组</td><td>同角色规格</td><td>AI精灵表生成</td><td>P0</td></tr>
+<tr><td>装饰元素（墨迹/粒子）</td><td>~5张</td><td>256×256, PNG半透明</td><td>AI/Canvas绘制</td><td>P1</td></tr>
+</table>
+
+<h3>1.2 可用 Skill / 工具评估</h3>
+
+<table>
+<tr><th>工具/Skill</th><th>能力</th><th>适用场景</th><th>可行性</th><th>局限</th></tr>
+<tr>
+  <td><code>sprite-sheet-generator</code></td>
+  <td>从参考图生成4方向×10帧精灵表</td>
+  <td><strong>棋子/角色动画</strong>（核心刚需）</td>
+  <td class="highlight">✅ 可用</td>
+  <td>需要初始参考图；角色旋转角度的一致性依赖AI模型质量</td>
+</tr>
+<tr>
+  <td><code>ImageGen</code>（DeferExecuteTool）</td>
+  <td>文生图 / 图生图</td>
+  <td><strong>卡牌插画、棋盘背景、UI元素</strong></td>
+  <td class="highlight">✅ 可用</td>
+  <td>风格一致性需统一prompt前缀；无透明通道输出（需后处理抠图）</td>
+</tr>
+<tr>
+  <td><code>nano-banana-pro</code></td>
+  <td>Gemini 3 Pro Image 生成</td>
+  <td>高质量卡牌立绘、场景概念图</td>
+  <td class="highlight">✅ 可用</td>
+  <td>成本较高（Token消耗大）；返回尺寸不固定</td>
+</tr>
+<tr>
+  <td><code>canvas-design</code></td>
+  <td>程序化生成矢量/VFX装饰</td>
+  <td><strong>UI边框、水墨粒子贴图、按钮</strong></td>
+  <td class="highlight">✅ 高</td>
+  <td>仅适合几何/矢量风格，不适合写实/复杂插画</td>
+</tr>
+<tr>
+  <td><code>game-art-comfyui-generator</code></td>
+  <td>本地ComfyUI管线</td>
+  <td>批量生产 + ControlNet精确控型</td>
+  <td class="tag tag-orange">⚠ 需配置</td>
+  <td>需本地RTX3090 + ComfyUI环境；未部署则不可用</td>
+</tr>
+<tr>
+  <td><code>VideoGen</code></td>
+  <td>文生/图生视频</td>
+  <td>宣传片、特效预览</td>
+  <td class="tag tag-green">可选</td>
+  <td>不直接用于游戏素材，仅宣发用途</td>
+</tr>
+</table>
+
+<div class="ok-box">
+<div class="title">✅ 结论：现有技能可以覆盖 MVP 全部美术需求</div>
+<p>核心管线：<code>sprite-sheet-generator</code>（角色动画）+ <code>ImageGen</code>（卡牌/场景）+ <code>canvas-design</code>（UI/特效贴图）。三种工具互补，无需额外安装任何软件。</p>
+</div>
+
+<h3>1.3 角色精灵表生产流程（代码级）</h3>
+
+<div class="card">
+<div class="card-title">Step 1: 初始参考图获取</div>
+<p><strong>方案A（推荐）</strong>：用 ImageGen 文生图生成角色的 1 个方向站立图</p>
+<pre><code>// TypeScript: 角色 prompt 模板
+const CHARACTER_PROMPT = {
+  base: "水墨国风角色, 2D游戏精灵, 简约风格, 纯白背景",
+  inkRealmHero: "侠客形象, 手持毛笔状武器, 水墨晕染衣袍, 黑白灰主色调, 朱红点缀",
+  inkRealmSword: (weapon: string) => `墨剑流角色, 手持${weapon}, 凌厉线条, 墨迹披风`,
+  inkRealmShield: "墨盾流角色, 背负盾牌, 厚重笔触轮廓, 沉稳姿态",
+  inkRealmMage: "墨法流角色, 周身飘浮墨点, 宽袍大袖, 飘逸笔触",
+  styleSuffix: "站立待机姿态, 正面视角, 全身可见, 纯白背景, 简洁干净, 2D sprite"
+};
+
+// → ImageGen 生图 → 保存为 front_stand.png
+</code></pre>
+
+<p><strong>方案B</strong>：用 canvas-design 配合手绘板/素材库制作初始参考</p>
+
+<div class="card-title" style="margin-top:14px;">Step 2: sprite-sheet-generator 展开动画</div>
+<p>将 front_stand.png 作为参考图输入，技能自动生成其余3个方向的站立帧 + 各方向的走/跑/死亡帧，最后合成 4×10 精灵表。</p>
+<pre><code>// 敏捷工作流：用 ImageGen 生1张参考 → sprite-sheet-generator → 输出精灵表
+// 每角色耗时约：ImageGen 30s + 逐帧生成 ~5min + 校验 ~2min = ~8min/角色
+// MVP需要4组角色 = 约 30 分钟纯 AI 工作时间
+
+// 校验标准（写入 CI）：
+function validateSpriteSheet(sheet: HTMLImageElement): ValidationResult {
+  const W = 200, H = 200;
+  if (sheet.width !== 10 * W || sheet.height !== 4 * H)
+    return { pass: false, reason: `尺寸错误: ${sheet.width}x${sheet.height}` };
+
+  // 检查每行的第1帧（站立帧）与后续帧的颜色直方图差异
+  for (let row = 0; row < 4; row++) {
+    const standHist = extractColorHistogram(sheet, 0, row);
+    for (let col = 1; col < 10; col++) {
+      const frameHist = extractColorHistogram(sheet, col, row);
+      const diff = histogramDiff(standHist, frameHist);
+      if (diff > 0.3) // 阈值：>30%差异则警报
+        return { pass: false, reason: `Row${row} Col${col}: 风格偏差 ${diff.toFixed(2)}` };
+    }
+  }
+  return { pass: true };
+}
+</code></pre>
+</div>
+
+<h3>1.4 卡牌插画生产流程</h3>
+
+<div class="card">
+<div class="card-title">批量生产模板</div>
+<pre><code>// —————————————— 卡牌生成 prompt 体系 ——————————————
+
+const CARD_STYLE = [
+  "水墨国风插画",
+  "黑白灰主色调，朱红/靛蓝点缀",
+  "毛笔笔触质感，墨迹晕染效果",
+  "留白构图，简约意境",
+  "竖版构图，上方留文字区域",
+  "扁平化2D风格",
+  "无边框，纯色背景易于抠图"
+].join("，");
+
+// 不同流派使用统一后缀保证风格一致
+const CARD_SUFFIX = `，${CARD_STYLE}，纯白背景`;
+
+const cardPrompts: Record&lt;string, string&gt; = {
+  // 墨剑流
+  "连斩": `侠客挥剑连击三式，剑影如墨痕叠加${CARD_SUFFIX}`,
+  "剑气": `一道墨色剑气横贯画面，破空之势${CARD_SUFFIX}`,
+  "破甲": `墨剑击碎墨色铠甲，碎片飞溅${CARD_SUFFIX}`,
+  // 墨盾流
+  "铁壁": `墨色盾牌巍然矗立，表面有山水纹理${CARD_SUFFIX}`,
+  "荆棘": `盾牌上生出墨色荆棘，缠绕蔓延${CARD_SUFFIX}`,
+  "嘲讽": `角色张开双臂，墨色波纹向四周扩散${CARD_SUFFIX}`,
+  // 墨法流
+  "火球": `墨色火焰凝聚成球，灼烧扭曲空气${CARD_SUFFIX}`,
+  "冰锥": `墨色冰晶锥刺，寒气化为墨迹飘散${CARD_SUFFIX}`,
+  "雷击": `墨色闪电从画面顶部劈下，分支如树根${CARD_SUFFIX}`,
+};
+
+// 批量处理管线
+async function batchGenerateCards(): Promise&lt;CardAsset[]&gt; {
+  const cards = Object.entries(cardPrompts);
+  const BATCH_SIZE = 4;
+  const results: CardAsset[] = [];
+
+  for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+    const batch = cards.slice(i, i + BATCH_SIZE);
+    // 并行发送 ImageGen 请求
+    const images = await Promise.all(
+      batch.map(([name, prompt]) => ImageGen({ prompt, size: "400x560" }))
+    );
+    results.push(...images.map((img, idx) => ({
+      name: batch[idx][0],
+      data: img,
+      width: 400,
+      height: 560,
+    })));
+    // 每批次间隔 3s 避免限流
+    await sleep(3000);
+  }
+  return results;
+}
+</code></pre>
+
+<p><strong>后处理须知</strong>：ImageGen 输出通常带纯色/渐变背景，需用以下脚本批量透明化：</p>
+<pre><code># Python: remove_background_batch.py
+from PIL import Image
+import numpy as np
+from pathlib import Path
+
+def make_transparent(img_path: str, output_path: str, threshold=240):
+    """将接近白色的像素转为透明"""
+    img = Image.open(img_path).convert("RGBA")
+    arr = np.array(img)
+    # 找出 R/G/B 都 > threshold 的像素
+    mask = (arr[:,:,0] > threshold) & (arr[:,:,1] > threshold) & (arr[:,:,2] > threshold)
+    arr[mask, 3] = 0  # 设置 alpha=0
+    Image.fromarray(arr).save(output_path, "PNG")
+
+# 批量处理 generated-cards/ 下所有图片
+for p in Path("generated-cards").glob("*.png"):
+    make_transparent(str(p), str(p))
+    print(f"  ✓ {p.name} → 透明化完成")
+</code></pre>
+</div>
+
+<h3>1.5 棋盘与UI生成</h3>
+
+<div class="card">
+<div class="card-title">棋盘 — 程序化 + AI 混合方案</div>
+<pre><code>// —————————————— BoardRenderer.ts ——————————————
+// 方案：AI生成宣纸纹理基底 → Phaser Canvas 叠加绘制墨迹格子
+
+export class BoardRenderer {
+  /** 加载AI生成的宣纸纹理作为基底 */
+  async init(scene: Phaser.Scene): Promise&lt;void&gt; {
+    // 1. 加载基底纹理（ImageGen产出宣纸纹理）
+    // 2. 程序化绘制5×5网格（CanvasTexture）
+    // 3. 叠加墨迹格子装饰
+
+    const canvas = scene.textures.createCanvas('board_bg', 750, 750);
+    const ctx = canvas.context;
+
+    // AI生成宣纸纹理作为image
+    // 这里用代码模拟"墨迹格子"的绘制逻辑
+    const CELL = 150; // 750/5
+    ctx.strokeStyle = 'rgba(40, 35, 30, 0.6)';
+    ctx.lineWidth = 2;
+
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 5; c++) {
+        const x = c * CELL, y = r * CELL;
+        ctx.strokeRect(x + 2, y + 2, CELL - 4, CELL - 4);
+
+        // 在关键格点画墨点装饰
+        // 角落 → 浓墨 · 中心 → 淡墨
+        const isCenter = (r === 2 && c === 2);
+        ctx.beginPath();
+        ctx.fillStyle = isCenter ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)';
+        ctx.arc(x + CELL / 2, y + CELL / 2, isCenter ? 6 : 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    canvas.refresh();
+  }
+}
+
+// —————————————— UIConfig.ts ——————————————
+// UI元素尽量用 Phaser 内置图形/GUI 绘制，减少图片依赖
+// 按钮：Graphics.drawRoundedRect + 文字
+// 血条：Graphics.fillRect 渐变色
+// 行动点指示：墨滴形状圆点
+</code></pre>
+</div>
+
+<h3>1.6 素材打包与加载策略（包体控制）</h3>
+
+<div class="card">
+<table>
+<tr><th>内容</th><th>估算体积</th><th>加载策略</th></tr>
+<tr><td>角色精灵表（4组）</td><td>4 × 800KB = 3.2MB</td><td>首包预加载</td></tr>
+<tr><td>卡牌插画（30张）</td><td>30 × 100KB = 3MB</td><td>分包按需加载（每流派的卡牌单独分包）</td></tr>
+<tr><td>棋盘纹理</td><td>200KB</td><td>首包预加载</td></tr>
+<tr><td>UI元素</td><td>300KB</td><td>首包预加载</td></tr>
+<tr><td>特效序列帧</td><td>~1.5MB</td><td>分包懒加载（首次使用对应技能时下载）</td></tr>
+<tr><td>音效（P1）</td><td>~500KB</td><td>分包懒加载</td></tr>
+<tr><td>Phaser 3 运行时</td><td>~300KB (gzip)</td><td>首包</td></tr>
+</table>
+<p><strong>首包合计</strong>：~4MB（刚好卡在微信 4MB 限额）。<span class="warn">需严格控制卡牌初始加载量，建议 MVP 首包只放 12 张核心卡牌（~1.2MB），其余按关卡分包加载。</span></p>
+
+<pre><code>// —————————————— AssetLoader.ts ——————————————
+// 微信小游戏 Phaser 分包加载实现
+
+export class AssetLoader {
+  private loadedPacks: Set&lt;string&gt; = new Set(['core']);
+
+  /** 加载指定资源包 */
+  async loadPack(packName: string, scene: Phaser.Scene): Promise&lt;void&gt; {
+    if (this.loadedPacks.has(packName)) return;
+
+    return new Promise((resolve, reject) => {
+      // 微信小游戏分包路径规则
+      const packPath = `subpacks/${packName}/assets.json`;
+
+      scene.load.multiatlas(packName, packPath, `subpacks/${packName}`);
+      scene.load.start();
+
+      scene.load.once('complete', () => {
+        this.loadedPacks.add(packName);
+        resolve();
+      });
+      scene.load.once('loaderror', (file: any) => {
+        reject(new Error(`分包加载失败: ${packName}, 文件: ${file.key}`));
+      });
+    });
+  }
+
+  /** 按进度预判加载（Predictive Loading）：
+   *  根据当前楼层和流派，预加载下一层会用到的卡牌包 */
+  predictiveLoad(floor: number, build: string[]): void {
+    const nextPack = this.predictNextPack(floor, build);
+    if (nextPack && !this.loadedPacks.has(nextPack)) {
+      // 异步预加载，不阻塞主流程
+      this.loadPack(nextPack, this.getCurrentScene()).catch(() => {});
+    }
+  }
+
+  private predictNextPack(floor: number, build: string[]): string | null {
+    if (floor <= 3) return 'layer1_2';
+    if (floor <= 6) return 'layer4_6';
+    if (floor <= 9) return 'layer7_9';
+    return 'boss';
+  }
+}
+</code></pre>
+</div>
+
+<h3>1.7 风格一致性保障</h3>
+
+<div class="card">
+<p>AI 生成素材最大的风险是<span class="warn">风格飘移</span>。以下策略组合使用：</p>
+<ol>
+<li><strong><span class="highlight">统一 prompt 前缀</span></strong>：所有素材生成时加上 <code>CARD_STYLE</code> 常量（水墨国风 + 黑白灰 + 毛笔笔触 + 留白），保持视觉 DNA</li>
+<li><strong><span class="highlight">种子固定</span></strong>：ImageGen 参数传固定 seed（如 42），至少在单一角色/卡牌内部固定，减少随机变异</li>
+<li><strong><span class="highlight">参考图驱动</span></strong>：sprite-sheet-generator 通过 <code>read_file</code> 加载参考图后再生图，AI 自动参考风格</li>
+<li><strong><span class="highlight">后处理归一化</span></strong>：所有素材经过统一色调映射脚本（Python Pillow），校正色相偏移</li>
+<li><strong><span class="highlight">备用方案</span></strong>：最终效果不满意时，使用 <code>canvas-design</code> 生成纯几何/矢量替代素材（低配但风格可控）</li>
+</ol>
+
+<pre><code># Python: style_normalize.py — 素材风格归一化
+from PIL import Image, ImageEnhance
+import numpy as np
+from pathlib import Path
+
+def normalize_ink_style(img_path: str, output_path: str):
+    """将素材调整到水墨风格色域"""
+    img = Image.open(img_path).convert("RGBA")
+
+    # 1. 降低饱和度（水墨风=低饱和）
+    enhancer = ImageEnhance.Color(img)
+    img = enhancer.enhance(0.4)
+
+    # 2. 增加对比度（墨迹更清晰）
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.3)
+
+    # 3. 色相偏移：使偏色向黑白灰收敛
+    arr = np.array(img)
+    gray = arr[:,:,:3].mean(axis=2, keepdims=True)  # (H,W,1)
+    # 混合：70% 灰度值 + 30% 原色
+    arr[:,:,:3] = (0.7 * gray + 0.3 * arr[:,:,:3]).astype(np.uint8)
+    img = Image.fromarray(arr)
+
+    img.save(output_path, "PNG")
+    print(f"  ✓ {Path(img_path).name} → 风格归一化完成")
+
+# 批量处理
+for p in Path("assets/cards").glob("*.png"):
+    normalize_ink_style(str(p), str(p))
+</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第二章：QoS 保障 -->
+<!-- ═══════════════════════════════════ -->
+<h2>二、QoS（服务质量）保障</h2>
+
+<h3>2.1 微信小游戏 QoS 核心指标</h3>
+<table>
+<tr><th>指标</th><th>目标</th><th>监控方式</th><th>违规后果</th></tr>
+<tr><td>首包加载时间</td><td>&lt; 3s（WiFi）/ &lt; 8s（4G）</td><td>wx.getPerformance() + 自定义埋点</td><td>用户流失率↑50% 每多1s</td></tr>
+<tr><td>帧率（FPS）</td><td>≥ 30fps（低端机≥ 25fps）</td><td>Phaser 内置 stats + 帧率采样</td><td>卡顿→差评→低评分</td></tr>
+<tr><td>内存峰值</td><td>&lt; 200MB（低端机 &lt; 150MB）</td><td>wx.getPerformance().memory</td><td>微信回收→闪退</td></tr>
+<tr><td>资源加载成功率</td><td>≥ 99.5%</td><td>加载失败埋点</td><td>卡死/白屏</td></tr>
+<tr><td>首屏渲染</td><td>&lt; 1.5s</td><td>自定义计时埋点</td><td>用户以为打不开</td></tr>
+<tr><td>CPU 单帧耗时</td><td>&lt; 33ms (30fps)</td><td>Phaser 场景 update 计时</td><td>整体帧率下降</td></tr>
+</table>
+
+<h3>2.2 资源加载队列（代码级实现）</h3>
+
+<div class="card">
+<pre><code>// —————————————— QoSAssetQueue.ts ——————————————
+// 精细化的资源加载队列，支持优先级、超时、重试、降级
+
+export enum AssetPriority { CRITICAL, HIGH, NORMAL, LOW, DEFERRED }
+
+interface QueueItem {
+  key: string;
+  url: string;
+  priority: AssetPriority;
+  retries: number;
+  maxRetries: number;
+  timeout: number;         // 单次超时（ms）
+  fallback?: string;       // 降级资源key
+  onProgress?: (pct: number) => void;
+}
+
+export class QoSAssetQueue {
+  private queue: QueueItem[] = [];
+  private loading = false;
+  private stats = { total: 0, loaded: 0, failed: 0, retries: 0 };
+
+  enqueue(item: QueueItem): void {
+    // 按优先级插入
+    const idx = this.queue.findIndex(q => q.priority < item.priority);
+    if (idx === -1) this.queue.push(item);
+    else this.queue.splice(idx, 0, item);
+    this.stats.total++;
+    this.processNext();
+  }
+
+  private async processNext(): Promise&lt;void&gt; {
+    if (this.loading || this.queue.length === 0) return;
+    this.loading = true;
+
+    const item = this.queue.shift()!;
+    const result = await this.loadWithRetry(item);
+
+    if (!result.success) {
+      this.stats.failed++;
+      // 降级策略：使用 fallback 资源
+      if (item.fallback) {
+        console.warn(`[QoS] ${item.key} 加载失败，降级至 ${item.fallback}`);
+        await this.loadDirect(item.fallback);
+      } else {
+        // 没有降级，用程序化生成的占位图
+        this.generatePlaceholder(item.key);
+        console.error(`[QoS] ${item.key} 加载失败，使用占位图`);
+      }
+    } else {
+      this.stats.loaded++;
+    }
+
+    this.loading = false;
+    this.processNext();
+  }
+
+  private async loadWithRetry(item: QueueItem, attempt = 0): Promise&lt;{success: boolean}&gt; {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), item.timeout);
+
+      // 模拟 Phaser.load 的 Promise 封装
+      await this.loadAsset(item.key, item.url, controller.signal);
+      clearTimeout(timer);
+      return { success: true };
+    } catch (err) {
+      if (attempt < item.maxRetries) {
+        this.stats.retries++;
+        // 指数退避：1s, 2s, 4s...
+        const delay = Math.pow(2, attempt) * 1000;
+        console.warn(`[QoS] ${item.key} 重试 #${attempt + 1}, ${delay}ms后`);
+        await sleep(delay);
+        return this.loadWithRetry(item, attempt + 1);
+      }
+      return { success: false };
+    }
+  }
+
+  /** 降级：程序化生成占位图 */
+  private generatePlaceholder(key: string): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200; canvas.height = 200;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#2a2a3e';
+    ctx.fillRect(0, 0, 200, 200);
+    ctx.fillStyle = '#888';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('加载中', 100, 100);
+    // 注册到 Phaser 纹理缓存
+    // this.scene.textures.addCanvas(key, canvas);
+  }
+}
+</code></pre>
+</div>
+
+<h3>2.3 帧率保障（CPU/GPU 预算控制）</h3>
+
+<div class="card">
+<pre><code>// —————————————— FrameBudget.ts ——————————————
+// 每帧时间预算控制器
+
+export interface FrameBudgetReport {
+  fps: number;
+  used: number;     // 实际耗时(ms)
+  budget: number;   // 预算(ms)
+  overage: number;  // 超支(ms)
+  warnings: string[];
+}
+
+export class FrameBudget {
+  private static readonly TARGET_FPS = 30;
+  private static readonly FRAME_BUDGET_MS = 1000 / FrameBudget.TARGET_FPS; // 33.3ms
+  private static readonly WARN_THRESHOLD = 0.8; // 超过80%预算即警告
+
+  private history: number[] = [];
+  private lastFrameTime = 0;
+
+  /** 每帧开始时调用，返回剩余时间预算 */
+  beginFrame(): number {
+    const now = performance.now();
+    if (this.lastFrameTime > 0) {
+      const elapsed = now - this.lastFrameTime;
+      this.history.push(elapsed);
+      if (this.history.length > 60) this.history.shift(); // 保留最近60帧
+    }
+    this.lastFrameTime = now;
+    return FrameBudget.FRAME_BUDGET_MS;
+  }
+
+  /** 每帧结束时报告 */
+  endFrame(): FrameBudgetReport {
+    const elapsed = performance.now() - this.lastFrameTime;
+    const fps = this.calcFPS();
+    const overage = Math.max(0, elapsed - FrameBudget.FRAME_BUDGET_MS);
+
+    const warnings: string[] = [];
+    const usage = elapsed / FrameBudget.FRAME_BUDGET_MS;
+    if (usage > FrameBudget.WARN_THRESHOLD) {
+      warnings.push(`帧预算使用率 ${(usage * 100).toFixed(0)}%，剩余 ${(FrameBudget.FRAME_BUDGET_MS - elapsed).toFixed(1)}ms`);
+    }
+    if (fps < 20) {
+      warnings.push(`⚠️ 严重掉帧: ${fps.toFixed(1)} FPS`);
+    }
+
+    return { fps, used: elapsed, budget: FrameBudget.FRAME_BUDGET_MS, overage, warnings };
+  }
+
+  private calcFPS(): number {
+    if (this.history.length < 2) return FrameBudget.TARGET_FPS;
+    const avg = this.history.reduce((a, b) => a + b, 0) / this.history.length;
+    return avg > 0 ? 1000 / avg : FrameBudget.TARGET_FPS;
+  }
+
+  /** 动态质量缩放：检测低帧率时自动降质 */
+  static autoQualityScale(fps: number): number {
+    if (fps >= 30) return 1.0; // 高品质
+    if (fps >= 25) return 0.75; // 中度降质：关部分特效
+    if (fps >= 20) return 0.5;  // 大幅度降质：关粒子系统
+    return 0.25;                 // 最低质量：所有特效关闭，简化渲染
+  }
+}
+
+// —————————————— 在 GameScene.ts 中使用 ——————————————
+// update(time: number, delta: number) {
+//   const report = this.frameBudget.endFrame();
+//   if (report.warnings.length > 0) {
+//     const scale = FrameBudget.autoQualityScale(report.fps);
+//     this.applyQualityScale(scale);
+//     if (report.fps < 15) this.skipNonEssentialUpdates();
+//   }
+//   this.frameBudget.beginFrame();
+// }
+</code></pre>
+</div>
+
+<h3>2.4 内存控制</h3>
+
+<div class="card">
+<pre><code>// —————————————— MemoryManager.ts ——————————————
+export class MemoryManager {
+  private static readonly MAX_MEMORY_MB = 180;
+  private static readonly GC_THRESHOLD = 150; // 超过此值触发主动回收
+
+  /** 注册资源到管理器，退出场景时自动释放 */
+  private trackedTextures: Set&lt;string&gt; = new Set();
+
+  track(key: string): void {
+    this.trackedTextures.add(key);
+  }
+
+  /** 场景切换时清理未使用的纹理缓存 */
+  onSceneChange(newScene: string, phaserScene: Phaser.Scene): void {
+    const usedByNewScene = this.getUsedTextures(newScene);
+
+    // 只保留当前场景需要的纹理
+    for (const key of this.trackedTextures) {
+      if (!usedByNewScene.has(key) && phaserScene.textures.exists(key)) {
+        phaserScene.textures.remove(key);
+        console.log(`[Memory] 释放纹理: ${key}`);
+      }
+    }
+
+    this.reportMemory();
+  }
+
+  /** 低端机：压缩纹理质量 */
+  compressTextures(scene: Phaser.Scene): void {
+    // 将纹理缩放到 75% 尺寸
+    this.trackedTextures.forEach(key => {
+      if (scene.textures.exists(key)) {
+        const tex = scene.textures.get(key);
+        // 通过 Canvas 重采样缩小
+        // 实际实现需要 Phaser 的 CanvasTexture API
+      }
+    });
+  }
+
+  /** 主动内存报告 */
+  reportMemory(): { used: number; limit: number } {
+    const info = wx.getPerformance().memory;
+    const used = info?.used ?? 0;    // JS 堆使用量 (MB)
+    const limit = info?.limit ?? 0;
+    console.log(`[Memory] JS堆: ${used}MB / ${limit}MB`);
+    return { used: used / 1024 / 1024, limit: limit / 1024 / 1024 };
+  }
+
+  /** 微信小游戏主动触发 GC（非标准，但可通过分配大对象触发） */
+  triggerGC(): void {
+    // 临时创建大对象强制 GC
+    let tmp = new Array(1024 * 1024);
+    tmp.fill(0);
+    tmp = null as any;
+  }
+}
+
+// —————————————— 在 BootScene 初始化 ——————————————
+// const mem = new MemoryManager();
+// setInterval(() => {
+//   const { used } = mem.reportMemory();
+//   if (used > MemoryManager.GC_THRESHOLD) {
+//     mem.triggerGC();
+//     mem.compressTextures(this);
+//   }
+// }, 30000); // 每30秒检查
+</code></pre>
+</div>
+
+<h3>2.5 网络 QoS（资源加载 + 云服务）</h3>
+
+<table>
+<tr><th>场景</th><th>策略</th><th>代码实现关键点</th></tr>
+<tr><td>首包加载</td><td>静默分包 + Loading进度条</td><td>Phaser load.start + load.progress 事件</td></tr>
+<tr><td>卡牌分包</td><td>预判加载（Predictive Loading）</td><td>进入新楼层前预加载下一分包</td></tr>
+<tr><td>CDN资源加载失败</td><td>指数退避重试（3次）→ 降级占位图</td><td>QoSAssetQueue.loadWithRetry()</td></tr>
+<tr><td>排行榜/云存档</td><td>乐观更新 + 后台同步</td><td>本地先更新UI，网络请求失败静默重试</td></tr>
+<tr><td>微信API限频</td><td>请求队列 + 节流</td><td>wx.login / wx.request 节流（每秒≤10次）</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第三章：软件稳定性保障 -->
+<!-- ═══════════════════════════════════ -->
+<h2>三、软件稳定性保障</h2>
+
+<h3>3.1 防御编程（Defensive Programming）</h3>
+
+<div class="card">
+<div class="card-title">核心模块前置条件校验</div>
+<pre><code>// —————————————— core/assert.ts ——————————————
+export function assert(condition: boolean, msg: string): asserts condition {
+  if (!condition) {
+    const error = new Error(`[墨境棋局] 断言失败: ${msg}`);
+    // 生产环境只console.error，不throw（避免白屏）
+    if (isDev()) throw error;
+    else console.error(error);
+  }
+}
+
+export function nonNull&lt;T&gt;(val: T | null | undefined, name: string): T {
+  if (val == null) {
+    const msg = `[墨境棋局] 意外空值: ${name}`;
+    if (isDev()) throw new Error(msg);
+    else { console.error(msg); return null as unknown as T; }
+  }
+  return val;
+}
+
+// —————————————— core/Board.ts ——————————————
+export class Board {
+  constructor(size: number = 5) {
+    assert(size >= 3 && size <= 9, `棋盘尺寸异常: ${size}`);
+    // ...
+  }
+
+  getCell(x: number, y: number): Cell {
+    // 边界保护
+    if (x < 0 || x >= this.size || y < 0 || y >= this.size) {
+      console.warn(`[Board] 超出边界: (${x},${y}), 棋盘 ${this.size}x${this.size}`);
+      return Cell.EMPTY; // 返回空单元格而非崩溃
+    }
+    return this.grid[y][x];
+  }
+
+  placeEntity(entity: Entity, x: number, y: number): boolean {
+    // 冲突检测
+    if (this.getCell(x, y) !== Cell.EMPTY) {
+      console.warn(`[Board] 放置冲突: ${entity.id} → (${x},${y}) 已被占据`);
+      return false; // 返回失败而非异常
+    }
+    this.grid[y][x] = Cell.create(entity);
+    return true;
+  }
+}
+
+// —————————————— core/Card.ts ——————————————
+export class Card {
+  play(target: Entity, board: Board): PlayResult {
+    // 卡牌效果执行前校验
+    if (this.cost > this.owner.ap) {
+      return { success: false, reason: '行动力不足' };
+    }
+    if (this.targetType === 'ENEMY' && target.isFriendly) {
+      return { success: false, reason: '目标类型不匹配' };
+    }
+    // 执行效果
+    return this.effect.execute(target, board);
+  }
+}
+</code></pre>
+</div>
+
+<h3>3.2 错误边界与恢复</h3>
+
+<div class="card">
+<pre><code>// —————————————— core/ErrorBoundary.ts ——————————————
+// 错误边界：防止单点崩溃导致整个游戏不可用
+
+type ErrorHandler = (error: Error, context: string) => void;
+
+export class ErrorBoundary {
+  private static handlers: ErrorHandler[] = [];
+
+  static registerHandler(handler: ErrorHandler): void {
+    this.handlers.push(handler);
+  }
+
+  /** 包裹一个函数，捕获内部异常并安全降级 */
+  static wrap&lt;T&gt;(fn: () => T, context: string, fallback: T): T {
+    try {
+      return fn();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.handlers.forEach(h => h(error, context));
+      console.error(`[ErrorBoundary] ${context}:`, error);
+      return fallback;
+    }
+  }
+
+  /** 异步版本 */
+  static async wrapAsync&lt;T&gt;(
+    fn: () => Promise&lt;T&gt;, context: string, fallback: T
+  ): Promise&lt;T&gt; {
+    try {
+      return await fn();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.handlers.forEach(h => h(error, context));
+      console.error(`[ErrorBoundary] ${context}:`, error);
+      return fallback;
+    }
+  }
+
+  /** 装饰器风格（对对象的方法批量包裹） */
+  static protectMethods&lt;T extends object&gt;(
+    obj: T, contexts: Record&lt;string, string&gt;, fallbacks: Record&lt;string, any&gt;
+  ): T {
+    const proxy = new Proxy(obj, {
+      get(target, prop: string) {
+        const orig = (target as any)[prop];
+        if (typeof orig !== 'function') return orig;
+        const ctx = contexts[prop] || prop;
+        const fb = fallbacks[prop];
+        return (...args: any[]) => {
+          try { return orig.apply(target, args); }
+          catch (err) {
+            console.error(`[ErrorBoundary] ${ctx}:`, err);
+            return fb;
+          }
+        };
+      }
+    });
+    return proxy;
+  }
+}
+
+// —————————————— 在 GameScene 初始化 ——————————————
+// ErrorBoundary.registerHandler((err, ctx) => {
+//   // 上报到远程日志
+//   RemoteLogger.error(ctx, err.message, err.stack);
+//   // 显示非致命错误提示
+//   Toast.show(`出了点小问题: ${ctx}，已自动恢复`);
+// });
+
+// 使用示例
+// const result = ErrorBoundary.wrap(
+//   () => battleSystem.resolveTurn(currentTurn),
+//   'battleSystem.resolveTurn',
+//   { damage: 0, effects: [] } // 安全的默认值
+// );
+</code></pre>
+</div>
+
+<h3>3.3 状态机与数据一致性</h3>
+
+<div class="card">
+<pre><code>// —————————————— core/GameStateMachine.ts ——————————————
+// 严格状态机确保游戏流程不会"走进死胡同"
+
+export enum GameState {
+  BOOT       = 'BOOT',
+  MENU       = 'MENU',
+  INIT_RUN   = 'INIT_RUN',
+  PLAYER_TURN= 'PLAYER_TURN',
+  ENEMY_TURN = 'ENEMY_TURN',
+  RESOLVING  = 'RESOLVING',
+  REWARD     = 'REWARD',
+  GAME_OVER  = 'GAME_OVER',
+  PAUSED     = 'PAUSED',
+}
+
+const TRANSITIONS: Record&lt;GameState, GameState[]&gt; = {
+  [GameState.BOOT]:        [GameState.MENU],
+  [GameState.MENU]:        [GameState.INIT_RUN],
+  [GameState.INIT_RUN]:    [GameState.PLAYER_TURN],
+  [GameState.PLAYER_TURN]: [GameState.ENEMY_TURN, GameState.PAUSED],
+  [GameState.ENEMY_TURN]:  [GameState.RESOLVING],
+  [GameState.RESOLVING]:   [GameState.PLAYER_TURN, GameState.REWARD, GameState.GAME_OVER],
+  [GameState.REWARD]:      [GameState.PLAYER_TURN, GameState.GAME_OVER],
+  [GameState.GAME_OVER]:   [GameState.MENU],
+  [GameState.PAUSED]:      [GameState.PLAYER_TURN, GameState.MENU],
+};
+
+export class GameStateMachine {
+  private current: GameState = GameState.BOOT;
+  private history: GameState[] = [];
+
+  get state(): GameState { return this.current; }
+
+  transition(to: GameState): boolean {
+    const allowed = TRANSITIONS[this.current];
+    if (!allowed || !allowed.includes(to)) {
+      console.error(
+        `[StateMachine] 非法转移: ${this.current} → ${to}. ` +
+        `允许: [${allowed?.join(', ') || '无'}]`
+      );
+      return false; // 安全拒绝非法转移
+    }
+    this.history.push(this.current);
+    this.current = to;
+    console.log(`[StateMachine] ${this.history[this.history.length - 1]} → ${to}`);
+    return true;
+  }
+
+  /** 回滚到上一个状态（错误恢复用） */
+  rollback(): boolean {
+    if (this.history.length === 0) return false;
+    this.current = this.history.pop()!;
+    console.log(`[StateMachine] 回滚至: ${this.current}`);
+    return true;
+  }
+
+  /** 快照：用于异常时的状态恢复 */
+  snapshot(): string {
+    return JSON.stringify({
+      state: this.current,
+      history: this.history,
+    });
+  }
+
+  restore(snapshot: string): void {
+    const data = JSON.parse(snapshot);
+    this.current = data.state;
+    this.history = data.history;
+  }
+}
+</code></pre>
+</div>
+
+<h3>3.4 存档校验与完整性验证</h3>
+
+<div class="card">
+<pre><code>// —————————————— data/SaveManager.ts ——————————————
+
+interface SaveData {
+  version: number;         // 存档版本号，用于向前兼容
+  checksum: string;        // SHA-256 校验和
+  timestamp: number;
+  player: {
+    hp: number; maxHp: number;
+    atk: number; arm: number;
+    deck: string[];        // 卡牌ID列表
+    gold: number;
+  };
+  progress: {
+    floor: number;
+    clearedRooms: number[];
+    relics: string[];
+  };
+  meta: {
+    totalRuns: number;
+    totalWins: number;
+  };
+}
+
+export class SaveManager {
+  private static readonly SAVE_KEY = 'ink_realm_save';
+  private static readonly SAVE_VERSION = 1;
+
+  /** 带校验的保存 */
+  static save(data: SaveData): boolean {
+    try {
+      data.version = SaveManager.SAVE_VERSION;
+      data.timestamp = Date.now();
+      data.checksum = SaveManager.calcChecksum(data);
+      wx.setStorageSync(SaveManager.SAVE_KEY, JSON.stringify(data));
+      return true;
+    } catch (err) {
+      console.error('[SaveManager] 保存失败:', err);
+      // 微信存储满时会抛出异常
+      return false;
+    }
+  }
+
+  /** 带完整性校验的读取 */
+  static load(): SaveData | null {
+    try {
+      const raw = wx.getStorageSync(SaveManager.SAVE_KEY);
+      if (!raw) return null;
+
+      const data: SaveData = JSON.parse(raw);
+      const expectedChecksum = data.checksum;
+
+      // 版本迁移
+      const migrated = SaveManager.migrate(data);
+      if (!migrated) {
+        console.error('[SaveManager] 版本迁移失败');
+        return null;
+      }
+
+      // 校验和验证
+      const actualChecksum = SaveManager.calcChecksum(migrated);
+      if (actualChecksum !== expectedChecksum) {
+        console.error('[SaveManager] 存档校验失败，数据可能损坏');
+        return null; // 返回 null → 启动新游戏
+      }
+
+      // 数据合理性校验
+      if (!SaveManager.validate(migrated)) {
+        console.error('[SaveManager] 存档数据不合理');
+        return null;
+      }
+
+      return migrated;
+    } catch (err) {
+      console.error('[SaveManager] 读取失败:', err);
+      return null;
+    }
+  }
+
+  private static calcChecksum(data: SaveData): string {
+    const { checksum, ...rest } = data;
+    // 微信小游戏下使用 SHA-256，简化版用 hashCode
+    // 实际应使用 wx.getFileSystemManager 或 crypto.subtle
+    return simpleHash(JSON.stringify(rest));
+  }
+
+  private static validate(data: SaveData): boolean {
+    // 血量不超上限
+    if (data.player.hp > data.player.maxHp) return false;
+    // 卡组不超上限
+    if (data.player.deck.length > 30) return false;
+    // 楼层范围合理
+    if (data.progress.floor < 0 || data.progress.floor > 10) return false;
+    return true;
+  }
+
+  private static migrate(data: any): SaveData | null {
+    while (data.version < SaveManager.SAVE_VERSION) {
+      if (data.version === 0) {
+        // v0 → v1: 增加 checksum 字段
+        // 之前的存档无 checksum，自动生成
+      }
+      data.version++;
+    }
+    return data as SaveData;
+  }
+}
+</code></pre>
+</div>
+
+<h3>3.5 微信小游戏特有的异常处理</h3>
+
+<div class="card">
+<pre><code>// —————————————— wx/WxStability.ts ——————————————
+
+export class WxStability {
+  /** 注册全局错误捕获 */
+  static init(): void {
+    // 1. 未捕获的 Promise 异常
+    wx.onUnhandledRejection(({ reason, promise }) => {
+      console.error('[Wx] 未捕获Promise拒绝:', reason);
+      RemoteLogger.error('UNHANDLED_REJECTION', String(reason));
+    });
+
+    // 2. 全局 JS 错误
+    wx.onError((error) => {
+      console.error('[Wx] 全局错误:', error);
+      RemoteLogger.error('GLOBAL_ERROR', String(error));
+    });
+
+    // 3. 内存不足警告
+    wx.onMemoryWarning((level) => {
+      console.warn(`[Wx] 内存警告, 级别: ${level}`);
+      if (level >= 10) { // TRIM_MEMORY_RUNNING_CRITICAL
+        // 强制释放缓存
+        MemoryManager.triggerGC();
+        MemoryManager.compressTextures(game.scene);
+      }
+    });
+
+    // 4. 音频中断
+    wx.onAudioInterruptionBegin(() => {
+      console.log('[Wx] 音频中断，暂停游戏');
+      game.scene.scenes.forEach(s => s.scene.pause());
+    });
+    wx.onAudioInterruptionEnd(() => {
+      console.log('[Wx] 音频恢复，继续游戏');
+      game.scene.scenes.forEach(s => s.scene.resume());
+    });
+
+    // 5. 网络变化
+    wx.onNetworkStatusChange(({ isConnected }) => {
+      if (!isConnected) {
+        Toast.show('网络已断开，部分功能不可用');
+      }
+    });
+  }
+}
+</code></pre>
+</div>
+
+<h3>3.6 单元测试与 CI 防线</h3>
+
+<div class="card">
+<pre><code>// —————————————— tests/card.test.ts （Vitest 示例）——————————————
+import { describe, it, expect } from 'vitest';
+import { Card } from '../src/core/Card';
+import { Board } from '../src/core/Board';
+import { TurnManager } from '../src/core/TurnManager';
+
+describe('核心战斗系统', () => {
+  it('伤害公式: 攻击力 × 技能倍率 − 护甲', () => {
+    const result = battleCalc(8, 1.5, 3);
+    expect(result).toBe(9); // 8 × 1.5 − 3 = 9
+  });
+
+  it('护甲在回合结束时清空', () => {
+    const turn = new TurnManager(new Board());
+    turn.resolveTurn();
+    expect(turn.player.arm).toBe(0);
+  });
+
+  it('棋盘边界保护: 出界返回 EMPTY 而非崩溃', () => {
+    const board = new Board(5);
+    expect(board.getCell(-1, 0)).toBe(Cell.EMPTY);
+    expect(board.getCell(5, 5)).toBe(Cell.EMPTY);
+  });
+
+  it('非法状态转移被拒绝', () => {
+    const fsm = new GameStateMachine();
+    // 直接从 MENU → GAME_OVER 不允许
+    expect(fsm.transition(GameState.GAME_OVER)).toBe(false);
+  });
+
+  it('存档校验: 损坏存档返回 null', () => {
+    wx.setStorageSync('ink_realm_save', '{"corrupted": true}');
+    expect(SaveManager.load()).toBeNull();
+  });
+});
+
+// —————————————— CI 配置 (.github/workflows/test.yml) ——————————————
+// name: Test & Balance
+// on: [push, pull_request]
+// jobs:
+//   test:
+//     runs-on: ubuntu-latest
+//     steps:
+//       - uses: actions/checkout@v4
+//       - uses: actions/setup-node@v4
+//         with: { node-version: '20' }
+//       - run: npm ci
+//       - run: npx vitest run          # 单元测试
+//       - run: npx tsc --noEmit        # 类型检查
+//   balance:
+//     runs-on: ubuntu-latest
+//     steps:
+//       - run: python3 simulate_balance.py --runs 1000
+//       - run: python3 analyze_balance.py
+//         # 检查通关率差值 < 5%
+</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第四章：Debug 手段 -->
+<!-- ═══════════════════════════════════ -->
+<h2>四、Debug 手段（代码级）</h2>
+
+<h3>4.1 日志系统架构</h3>
+
+<div class="card">
+<pre><code>// —————————————— debug/Logger.ts ——————————————
+// 分级日志系统：开发环境全量输出，生产环境只保留 ERROR + 采样 WARN
+
+export enum LogLevel {
+  DEBUG = 0, INFO = 1, WARN = 2, ERROR = 3, SILENT = 4,
+}
+
+interface LogEntry {
+  timestamp: number;
+  level: LogLevel;
+  module: string;
+  message: string;
+  data?: any;
+  stack?: string;
+}
+
+export class Logger {
+  private static level: LogLevel = isDev() ? LogLevel.DEBUG : LogLevel.ERROR;
+  private static buffer: LogEntry[] = [];
+  private static readonly MAX_BUFFER = 200;
+  private static readonly FLUSH_INTERVAL = 30000; // 30s 刷一次
+
+  static init(): void {
+    // 生产环境 WARN 级别按 10% 采样
+    if (!isDev()) {
+      Logger.level = LogLevel.ERROR;
+    }
+    // 定时刷日志到远程
+    setInterval(() => Logger.flush(), Logger.FLUSH_INTERVAL);
+  }
+
+  static debug(module: string, message: string, data?: any): void {
+    if (Logger.level > LogLevel.DEBUG) return;
+    Logger.push(LogLevel.DEBUG, module, message, data);
+  }
+
+  static info(module: string, message: string, data?: any): void {
+    if (Logger.level > LogLevel.INFO) return;
+    Logger.push(LogLevel.INFO, module, message, data);
+  }
+
+  static warn(module: string, message: string, data?: any): void {
+    if (Logger.level > LogLevel.WARN) return;
+    // 生产环境 10% 采样
+    if (!isDev() && Math.random() > 0.1) return;
+    Logger.push(LogLevel.WARN, module, message, data);
+  }
+
+  static error(module: string, message: string, data?: any): void {
+    if (Logger.level > LogLevel.ERROR) return;
+    const entry = Logger.push(LogLevel.ERROR, module, message, data);
+    // ERROR 立即上报
+    Logger.reportToRemote(entry);
+  }
+
+  private static push(level: LogLevel, module: string, message: string, data?: any): LogEntry {
+    const entry: LogEntry = {
+      timestamp: Date.now(),
+      level,
+      module,
+      message,
+      data: data ? Logger.sanitize(data) : undefined,
+      stack: level >= LogLevel.WARN ? new Error().stack?.split('\n').slice(2, 6).join('\n') : undefined,
+    };
+    Logger.buffer.push(entry);
+    if (Logger.buffer.length > Logger.MAX_BUFFER) Logger.buffer.shift();
+
+    // 控制台输出
+    const prefix = `[${LogLevel[level]}] [${module}]`;
+    switch (level) {
+      case LogLevel.DEBUG: console.debug(prefix, message, data ?? ''); break;
+      case LogLevel.INFO:  console.info(prefix, message, data ?? ''); break;
+      case LogLevel.WARN:  console.warn(prefix, message, data ?? ''); break;
+      case LogLevel.ERROR: console.error(prefix, message, data ?? ''); break;
+    }
+
+    return entry;
+  }
+
+  /** 敏感信息脱敏 */
+  private static sanitize(data: any): any {
+    const str = JSON.stringify(data);
+    // 脱敏 token, key, session 等字段
+    return JSON.parse(str.replace(/(sk-|session_key|token")[^"]+/g, '$1***'));
+  }
+
+  /** 上报到远程日志服务 */
+  private static reportToRemote(entry: LogEntry): void {
+    // 生产环境通过 wx.request 上报
+    if (!isDev()) {
+      wx.request({
+        url: 'https://log.inkrealm.com/report',
+        method: 'POST',
+        data: { entries: [entry] },
+        fail: () => {} // 静默失败，不影响游戏
+      });
+    }
+  }
+
+  /** 获取最近日志用于调试面板 */
+  static getRecentLogs(count: number = 50): LogEntry[] {
+    return Logger.buffer.slice(-count);
+  }
+
+  static flush(): void {
+    if (Logger.buffer.length === 0) return;
+    const batch = Logger.buffer.splice(0, Logger.MAX_BUFFER);
+    if (!isDev() && batch.some(e => e.level === LogLevel.ERROR)) {
+      wx.request({
+        url: 'https://log.inkrealm.com/report',
+        method: 'POST',
+        data: { entries: batch.slice(0, 20) }, // 最多 20 条
+        fail: () => {}
+      });
+    }
+  }
+}
+</code></pre>
+</div>
+
+<h3>4.2 调试面板（开发者模式）</h3>
+
+<div class="card">
+<pre><code>// —————————————— debug/DevPanel.ts ——————————————
+// 摇一摇呼出调试面板（只在开发/体验版生效）
+
+export class DevPanel {
+  private static visible = false;
+
+  static init(scene: Phaser.Scene): void {
+    // 摇一摇检测
+    let lastShake = 0;
+    wx.onAccelerometerChange(({ x, y, z }) => {
+      const accel = Math.abs(x) + Math.abs(y) + Math.abs(z);
+      if (accel > 25 && Date.now() - lastShake > 2000) { // 摇动阈值
+        lastShake = Date.now();
+        DevPanel.toggle(scene);
+      }
+    });
+
+    // 长按三指触摸
+    scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (scene.input.manager.pointersActive.length >= 3) {
+        DevPanel.toggle(scene);
+      }
+    });
+  }
+
+  static toggle(scene: Phaser.Scene): void {
+    DevPanel.visible = !DevPanel.visible;
+    if (DevPanel.visible) {
+      DevPanel.show(scene);
+    } else {
+      DevPanel.hide(scene);
+    }
+  }
+
+  private static show(scene: Phaser.Scene): void {
+    Logger.info('DevPanel', '调试面板已开启');
+
+    // 使用 DOM 创建调试面板（Phaser 不支持复杂UI，微信小游戏可用 DOM）
+    const panel = document.createElement('div');
+    panel.id = 'dev-panel';
+    panel.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85); z-index: 9999;
+      display: flex; flex-direction: column; padding: 20px;
+      font-size: 12px; color: #0f0; font-family: monospace;
+      overflow-y: auto;
+    `;
+    panel.innerHTML = `
+      <h3 style="color:#fff;margin-bottom:8px;">⚙ 墨境棋局 Debug 面板</h3>
+      <div id="dev-panel-tabs" style="display:flex;gap:8px;margin-bottom:12px;">
+        <button data-tab="log">📋 日志</button>
+        <button data-tab="state">🎮 状态</button>
+        <button data-tab="perf">📊 性能</button>
+        <button data-tab="memory">💾 内存</button>
+        <button data-tab="network">🌐 网络</button>
+      </div>
+      <div id="dev-panel-content" style="flex:1;overflow:auto;"></div>
+      <button id="dev-panel-close" style="margin-top:8px;padding:6px;">关闭</button>
+    `;
+    document.body.appendChild(panel);
+
+    // Tab 切换
+    panel.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = (btn as HTMLElement).dataset.tab!;
+        DevPanel.renderTab(tab);
+      });
+    });
+    panel.querySelector('#dev-panel-close')!.addEventListener('click', () => {
+      DevPanel.hide(scene);
+    });
+
+    // 默认显示日志
+    DevPanel.renderTab('log');
+  }
+
+  private static renderTab(tab: string): void {
+    const content = document.getElementById('dev-panel-content')!;
+    switch (tab) {
+      case 'log': {
+        const logs = Logger.getRecentLogs(100);
+        content.innerHTML = logs.map(l =>
+          `<div style="color:${LogLevel[l.level] === 'ERROR' ? '#f44' : LogLevel[l.level] === 'WARN' ? '#fa0' : '#0f0'}">
+            [${new Date(l.timestamp).toISOString().slice(11,19)}] [${LogLevel[l.level]}] [${l.module}] ${l.message}
+          </div>`
+        ).join('');
+        break;
+      }
+      case 'state': {
+        const fsm = (window as any).gameStateMachine;
+        content.innerHTML = `
+          <div>当前状态: ${fsm?.state ?? 'N/A'}</div>
+          <div>玩家HP: ${fsm?.player?.hp}/${fsm?.player?.maxHp}</div>
+          <div>楼层: ${fsm?.floor ?? 'N/A'}</div>
+          <div>卡组: ${(fsm?.player?.deck?.length ?? 0)} 张</div>
+        `;
+        break;
+      }
+      case 'perf': {
+        content.innerHTML = '<div>FPS: <span id="fps-counter">--</span></div>';
+        setInterval(() => {
+          const perf = wx.getPerformance();
+          document.getElementById('fps-counter')!.textContent =
+            `${perf.fps?.toFixed(1) ?? 'N/A'} fps`;
+        }, 1000);
+        break;
+      }
+      case 'memory': {
+        const mem = wx.getPerformance().memory;
+        content.innerHTML = `
+          <div>JS堆: ${(mem?.used / 1024 / 1024).toFixed(1)} MB / ${(mem?.limit / 1024 / 1024).toFixed(1)} MB</div>
+          <div>纹理缓存: ${Object.keys(game.textures?.keys ?? {}).length} 个</div>
+        `;
+        break;
+      }
+      case 'network': {
+        content.innerHTML = `
+          <div>资源加载队列: ${QoSAssetQueue.stats.loaded} / ${QoSAssetQueue.stats.total}</div>
+          <div>重试次数: ${QoSAssetQueue.stats.retries}</div>
+          <div>失败次数: ${QoSAssetQueue.stats.failed}</div>
+        `;
+        break;
+      }
+    }
+  }
+
+  private static hide(scene: Phaser.Scene): void {
+    document.getElementById('dev-panel')?.remove();
+  }
+}
+</code></pre>
+</div>
+
+<h3>4.3 微信开发者工具调试清单</h3>
+
+<table>
+<tr><th>调试场景</th><th>工具/方法</th><th>命令/步骤</th></tr>
+<tr><td>源码断点</td><td>微信开发者工具 → Sources</td><td>打开 game.js → 设置断点 → 操作触发</td></tr>
+<tr><td>网络请求</td><td>开发者工具 → Network</td><td>查看资源加载 / API 调用的详细耗时和返回</td></tr>
+<tr><td>Storage检查</td><td>开发者工具 → Storage</td><td>直接查看/修改 wx.setStorage 的数据</td></tr>
+<tr><td>WxSS/渲染</td><td>开发者工具 → Wxml</td><td>检查 DOM 结构（如果使用 DOM 渲染）</td></tr>
+<tr><td>性能分析</td><td>开发者工具 → 性能(Performance)</td><td>录制 5s 操作 → 分析帧率和函数耗时</td></tr>
+<tr><td>真机调试</td><td>预览 → 真机扫码 → vConsole</td><td>手机上实时看日志/网络/Storage</td></tr>
+<tr><td>内存快照</td><td>开发者工具 → Memory</td><td>Heap Snapshot → 分析内存泄漏</td></tr>
+</table>
+
+<h3>4.4 远程日志上报</h3>
+
+<div class="card">
+<pre><code>// —————————————— debug/RemoteLogger.ts ——————————————
+
+export class RemoteLogger {
+  private static readonly ENDPOINT = 'https://log.inkrealm.com/report';
+  private static sessionId = '';
+
+  static init(): void {
+    RemoteLogger.sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  /** 错误上报 */
+  static error(module: string, message: string, stack?: string): void {
+    const payload = {
+      sessionId: RemoteLogger.sessionId,
+      type: 'ERROR',
+      module,
+      message,
+      stack,
+      timestamp: Date.now(),
+      network: wx.getNetworkType?.() ?? 'unknown',
+      device: wx.getSystemInfoSync?.().model ?? 'unknown',
+      version: '1.0.0', // 游戏版本号
+    };
+
+    // 使用 Beacon API 避免影响主流程
+    wx.request({
+      url: RemoteLogger.ENDPOINT,
+      method: 'POST',
+      data: payload,
+      fail: () => {}, // 静默
+    });
+  }
+
+  /** 自定义埋点（用于监控关键路径） */
+  static track(event: string, data?: Record&lt;string, any&gt;): void {
+    if (!isDev()) {
+      wx.request({
+        url: RemoteLogger.ENDPOINT,
+        method: 'POST',
+        data: {
+          sessionId: RemoteLogger.sessionId,
+          type: 'TRACK',
+          event,
+          data,
+          timestamp: Date.now(),
+        },
+        fail: () => {},
+      });
+    }
+  }
+}
+
+// —————————————— 埋点关键路径 ——————————————
+// RemoteLogger.track('scene_load', { scene: 'GameScene', duration: 1200 });
+// RemoteLogger.track('battle_win', { floor: 5, build: '墨剑流', hpRemain: 42 });
+// RemoteLogger.track('card_play', { cardId: '连斩', cost: 2, targetType: 'enemy' });
+// RemoteLogger.track('ad_watch', { type: 'revive', reward: '复活' });
+// RemoteLogger.track('crash_recover', { context: 'board.render', recovered: true });
+</code></pre>
+</div>
+
+<h3>4.5 常见问题 Debug 速查表</h3>
+
+<table>
+<tr><th>现象</th><th>可能原因</th><th>Debug手段</th></tr>
+<tr><td>白屏/黑屏</td><td>首包加载失败 / Phaser启动异常</td><td>真机vConsole看error + Network检查资源URL</td></tr>
+<tr><td>卡牌无法拖拽</td><td>Input事件被遮挡 / 坐标系偏移</td><td>DevPanel查看pointer坐标 + 检查z-index</td></tr>
+<tr><td>敌人不动</td><td>AI逻辑死循环 / 状态机卡住</td><td>DevPanel → State查看当前状态 + 日志模块/AI</td></tr>
+<tr><td>数值显示异常</td><td>浮点精度 / 溢出 / 未刷新UI</td><td>DevPanel → State查看原始值 + 日志模块/Battle</td></tr>
+<tr><td>闪退（低端机）</td><td>内存超限 / 纹理太大</td><td>DevPanel → Memory + 微信开发者工具Memory快照</td></tr>
+<tr><td>分包加载慢</td><td>CDN配置 / 分包体积大</td><td>Network面板看加载时间 + 分包压缩</td></tr>
+<tr><td>排行榜数据不对</td><td>云数据库查询 / 本地缓存</td><td>Network看API返回 + 对比本地缓存</td></tr>
+</table>
+
+<h3>4.6 完整启停调试工作流</h3>
+
+<div class="card">
+<pre><code>// —————————————— debug/DebugBoot.ts ——————————————
+// 统一调试初始化入口
+
+export class DebugBoot {
+  static async init(scene: Phaser.Scene): Promise&lt;void&gt; {
+    // 1. 日志系统
+    Logger.init();
+
+    // 2. 全局错误捕获
+    WxStability.init();
+
+    // 3. 远程日志 session
+    RemoteLogger.init();
+
+    // 4. 性能监控（生产环境采样 1%）
+    if (isDev() || Math.random() < 0.01) {
+      PerfMonitor.start();
+    }
+
+    // 5. 调试面板（仅开发/体验版）
+    if (isDev() || __wxConfig?.envVersion === 'trial') {
+      DevPanel.init(scene);
+
+      // 注册全局快捷键
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'F12') DevPanel.toggle(scene);
+      });
+    }
+
+    // 6. 上报启动事件
+    RemoteLogger.track('game_start', {
+      env: __wxConfig?.envVersion ?? 'develop',
+      device: wx.getSystemInfoSync().model,
+      sdkVersion: wx.getSystemInfoSync().SDKVersion,
+    });
+
+    Logger.info('DebugBoot', '调试系统初始化完成', {
+      dev: isDev(),
+      fps: 30,
+      logLevel: LogLevel[Logger.level],
+    });
+  }
+}
+
+// —————————————— 辅助函数 ——————————————
+function isDev(): boolean {
+  // 通过 wx 环境变量判断
+  try {
+    const account = wx.getAccountInfoSync();
+    return account.miniProgram.envVersion === 'develop';
+  } catch {
+    return true; // 非微信环境视为开发环境
+  }
+}
+</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 附录：工具链速查 -->
+<!-- ═══════════════════════════════════ -->
+<h2>附录：Skill / 工具速查表</h2>
+
+<table>
+<tr><th>名称</th><th>类型</th><th>调用方式</th><th>适用阶段</th></tr>
+<tr><td><code>sprite-sheet-generator</code></td><td>Skill</td><td><code>Skill({ skill: "sprite-sheet-generator" })</code></td><td>角色动画素材生成</td></tr>
+<tr><td><code>ImageGen</code></td><td>内置工具</td><td><code>DeferExecuteTool({ toolName: "ImageGen", params: {...} })</code></td><td>卡牌/场景/UI 素材生成</td></tr>
+<tr><td><code>canvas-design</code></td><td>Skill</td><td><code>Skill({ skill: "canvas-design" })</code></td><td>UI 边框/装饰/粒子贴图</td></tr>
+<tr><td><code>VideoGen</code></td><td>内置工具</td><td><code>DeferExecuteTool({ toolName: "VideoGen", params: {...} })</code></td><td>宣传视频（非游戏素材）</td></tr>
+<tr><td><code>Vitest</code></td><td>npm包</td><td><code>npx vitest run</code></td><td>单元测试</td></tr>
+<tr><td><code>wx开发者工具</code></td><td>IDE</td><td>微信开发者工具 → 导入项目</td><td>日常开发调试</td></tr>
+<tr><td><code>balance_simulator.py</code></td><td>自定义脚本</td><td><code>python3 scripts/simulate_balance.py --runs 1000</code></td><td>平衡性测试</td></tr>
+</table>
+
+<div class="footer">
+墨境棋局 · 技术方案细化文档 v1.0 · 2026-07-17<br>
+配套策划书：<code>策划书_墨境棋局.html</code> · 存放于 wechat-game/ 目录
+</div>
+
+</body>
+</html>

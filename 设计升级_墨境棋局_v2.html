@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>墨境棋局 — 设计升级 v2（玩法/世界观/美术管线/像素水墨）</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Cascadia Code', 'JetBrains Mono', 'PingFang SC', 'Microsoft YaHei', monospace;
+  background: #0f0f1a;
+  color: #e0e0e8;
+  line-height: 1.7;
+  padding: 40px;
+}
+h1 { font-size: 2em; text-align: center; margin-bottom: 6px; color: #e8d5b5; }
+h1 span { font-size: 0.6em; display: block; color: #888; margin-top: 4px; }
+.subtitle { text-align: center; color: #888; margin-bottom: 40px; font-size: 0.9em; }
+h2 {
+  font-size: 1.35em; margin: 36px 0 14px; padding-bottom: 6px;
+  border-bottom: 2px solid #2a2a3a; color: #c8b88a;
+}
+h3 { font-size: 1.1em; margin: 22px 0 10px; color: #a8c8e8; }
+h4 { font-size: 1em; margin: 16px 0 8px; color: #88b8d8; }
+h5 { font-size: 0.93em; margin: 12px 0 6px; color: #88a8b8; }
+p { margin: 6px 0 10px; }
+ul, ol { margin: 6px 0 10px 22px; }
+li { margin: 3px 0; }
+
+.card {
+  background: #1a1a2e; border-radius: 12px; padding: 20px; margin: 16px 0;
+  border: 1px solid #2a2a3e;
+}
+.card-title { font-size: 1.05em; color: #e8d5b5; margin-bottom: 10px; font-weight: 600; }
+
+table {
+  width: 100%; border-collapse: collapse; margin: 12px 0;
+  font-size: 0.88em;
+}
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #2a2a3e; }
+th { background: #1a1a2e; color: #c8b88a; font-weight: 600; white-space: nowrap; }
+tr:hover { background: #1e1e34; }
+
+pre {
+  background: #12121e; padding: 14px; border-radius: 8px;
+  font-size: 0.82em; overflow-x: auto; line-height: 1.5;
+  border: 1px solid #1e1e30;
+}
+code {
+  background: #1a1a2e; padding: 1px 5px; border-radius: 3px;
+  font-size: 0.88em; color: #ffd76b;
+}
+pre code { background: none; padding: 0; color: inherit; }
+
+.tag {
+  display: inline-block; padding: 1px 8px; border-radius: 4px;
+  font-size: 0.78em; margin: 1px;
+}
+.tag-red { background: #3a1520; color: #ff6b7a; }
+.tag-blue { background: #15203a; color: #6bb5ff; }
+.tag-green { background: #153a20; color: #6bff8a; }
+.tag-gold { background: #3a3015; color: #ffd76b; }
+.tag-purple { background: #2a153a; color: #c86bff; }
+.tag-cyan { background: #152a2a; color: #6bffff; }
+.tag-orange { background: #3a2a15; color: #ffb86b; }
+
+.highlight { color: #ffd76b; font-weight: 600; }
+.number { color: #6bb5ff; }
+.warn { color: #ff6b7a; }
+
+.footer { text-align: center; color: #555; margin-top: 60px; font-size: 0.82em; }
+
+.details {
+  margin: 8px 0; background: #141428; border-radius: 8px;
+  border: 1px solid #2a2a3e; padding: 8px 14px;
+}
+.details summary {
+  cursor: pointer; color: #a8c8e8; font-weight: 500;
+  font-size: 0.9em;
+}
+
+.story-box {
+  background: #1a1520; border: 1px solid #3a2a4a; border-radius: 10px;
+  padding: 18px; margin: 14px 0; font-style: italic;
+  color: #d0c0e0; line-height: 1.9;
+}
+.story-box .speaker { color: #c8b88a; font-style: normal; font-weight: 600; }
+
+.diff-added { color: #6bff8a; }
+.diff-removed { color: #ff6b7a; }
+</style>
+</head>
+<body>
+
+<h1>墨境棋局 — 设计升级 v2<span>核心玩法 / 世界观 / 本地美术管线 / 像素水墨风</span></h1>
+<p class="subtitle">2026-07-17 · 补充原策划书/技术方案 v1</p>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第一章：核心玩法深度设计 -->
+<!-- ═══════════════════════════════════ -->
+<h2>一、核心玩法深度设计</h2>
+
+<h3>1.1 路线选择系统（参考杀戮尖塔）</h3>
+
+<div class="card">
+<div class="card-title">地图生成算法</div>
+<p>每次开局生成一张 <strong>4×6 节点地图</strong>（4行×6列），玩家从底部起点出发，逐层选择前进路线到达顶部 BOSS。</p>
+
+<pre><code>// —————————————— map/MapGenerator.ts ——————————————
+
+export enum NodeType {
+  BATTLE = 'BATTLE',       // 普通战斗
+  ELITE = 'ELITE',         // 精英战斗 → 高奖励
+  BOSS = 'BOSS',           // BOSS战
+  REST = 'REST',           // 休息（回血/升级）
+  SHOP = 'SHOP',           // 商店
+  EVENT = 'EVENT',         // 随机事件
+  TREASURE = 'TREASURE',   // 宝箱（免费卡牌）
+  MYSTERY = 'MYSTERY',     // 未知（进入前不可见类型）
+}
+
+interface MapNode {
+  id: string;
+  type: NodeType;
+  row: number;            // 0=BOSS层, 5=起点层
+  col: number;
+  connections: string[];  // 连接的下层节点ID
+  isRevealed: boolean;    // 是否已探索
+}
+
+export class MapGenerator {
+  static readonly ROWS = 6;
+  static readonly COLS = 6;
+
+  /** 生成一张随机地图 */
+  static generate(seed: number): MapNode[][] {
+    // 种子随机数确保同一 seed 生成相同地图
+    const rng = new SeededRandom(seed);
+
+    // 第0行：BOSS 固定
+    // 第1-4行：随机分布
+    // 第5行：起点（固定）
+
+    const grid: MapNode[][] = [];
+
+    // 第5行（起点）— 固定第3列为起点
+    grid[5] = this.generateRow(5, [NodeType.REST], rng);
+    grid[5][2] = { id: 'start', type: NodeType.REST, row: 5, col: 2, connections: [], isRevealed: true };
+
+    // 第4-1行（中间4层）
+    for (let row = 4; row >= 1; row--) {
+      grid[row] = this.generateRow(row, this.pickRowTypes(row, rng), rng);
+    }
+
+    // 第0行（BOSS）
+    grid[0] = this.generateRow(0, [NodeType.BOSS, NodeType.ELITE, NodeType.BOSS], rng);
+
+    // 建立连接：每层节点连接下一层的2-3个节点
+    this.buildConnections(grid, rng);
+
+    return grid;
+  }
+
+  private static pickRowTypes(row: number, rng: SeededRandom): NodeType[] {
+    // 不同层有不同的节点类型概率分布
+    const pool: NodeType[] = [];
+    const add = (type: NodeType, weight: number) => {
+      for (let i = 0; i < weight; i++) pool.push(type);
+    };
+
+    // 越靠近BOSS层，精英和商店越多
+    if (row >= 3) {
+      add(NodeType.BATTLE, 4);
+      add(NodeType.ELITE, 0);
+      add(NodeType.SHOP, 1);
+      add(NodeType.EVENT, 2);
+      add(NodeType.REST, 1);
+      add(NodeType.TREASURE, 1);
+      add(NodeType.MYSTERY, 1);
+    } else {
+      add(NodeType.BATTLE, 3);
+      add(NodeType.ELITE, 1);
+      add(NodeType.SHOP, 1);
+      add(NodeType.EVENT, 1);
+      add(NodeType.REST, 1);
+      add(NodeType.TREASURE, 1);
+      add(NodeType.MYSTERY, 2);
+    }
+
+    // 洗牌后取 COLS 个
+    return rng.shuffle(pool).slice(0, MapGenerator.COLS);
+  }
+
+  private static buildConnections(grid: MapNode[][], rng: SeededRandom): void {
+    for (let row = 1; row < MapGenerator.ROWS; row++) {
+      for (let c = 0; c < MapGenerator.COLS; c++) {
+        const node = grid[row][c];
+        if (!node) continue;
+
+        // 每个节点连接下一层的 [c-1, c, c+1] 范围内的2-3个节点
+        const candidates = [c];
+        if (c > 0) candidates.push(c - 1);
+        if (c < MapGenerator.COLS - 1) candidates.push(c + 1);
+
+        // 取2-3个连接
+        const count = rng.next() > 0.5 ? 3 : 2;
+        const selected = rng.shuffle(candidates).slice(0, count);
+
+        node.connections = selected.map(col =>
+          grid[row - 1][col]?.id
+        ).filter(Boolean);
+      }
+    }
+  }
+
+  private static generateRow(row: number, types: NodeType[], rng: SeededRandom): MapNode[] {
+    const typesCopy = rng.shuffle([...types]);
+    return typesCopy.map((type, col) => ({
+      id: `n${row}_${col}`,
+      type,
+      row,
+      col,
+      connections: [],
+      isRevealed: col === 2 && row === 5, // 仅起点可见
+    }));
+  }
+}
+</code></pre>
+
+<p><strong>每局地图布局</strong>（示意图）：</p>
+<pre><code> 第0层 (BOSS)    [BOSS]   [精英]   [BOSS]
+                   ╱ ╲   ╱ ╱ ╲   ╱ ╲
+ 第1层           [战] [事] [商] [秘] [战]
+                   ╲ ╱ ╲ ╱ ╲ ╱ ╲ ╱
+ 第2层           [秘] [战] [休] [战] [宝]
+                   ╱ ╲ ╱ ╲ ╱ ╲ ╱
+ 第3层           [战] [战] [事] [商] [战]
+                   ╲ ╱ ╲ ╱ ╲ ╱ ╲
+ 第4层           [战] [宝] [战] [休] [战]
+                   ╱ ╲ ╱ ╲ ╱
+ 第5层 (起点)        [起 点]</code></pre>
+</div>
+
+<h3>1.2 随机事件系统</h3>
+
+<div class="card">
+<pre><code>// —————————————— events/EventDefinitions.ts ——————————————
+
+interface GameEvent {
+  id: string;
+  title: string;
+  flavor: string;         // 叙事文本
+  choices: EventChoice[];
+  weight: number;         // 出现权重
+  minFloor: number;       // 最小出现楼层
+  tags: string[];         // 标签（用于条件触发）
+}
+
+interface EventChoice {
+  text: string;
+  effects: EventEffect[];
+  requirement?: EventRequirement; // 可选条件
+}
+
+type EventEffect =
+  | { type: 'hp', value: number }           // +恢复，-伤害
+  | { type: 'gold', value: number }
+  | { type: 'card', cardId: string }
+  | { type: 'remove_card', count: number }   // 删卡
+  | { type: 'upgrade_card', count: number }  // 升级卡牌
+  | { type: 'relic', relicId: string }       // 获得墨宝
+  | { type: 'max_hp', value: number }
+  | { type: 'temp_buff', buffId: string, duration: number } // 临时增益（本局有效）
+  | { type: 'curse', curseId: string }       // 诅咒卡牌
+  | { type: 'transform', count: number }     // 转化卡牌（随机变同稀有度）
+  ;
+
+// ============ 事件库（MVP 16个事件） ============
+
+const EVENTS: GameEvent[] = [
+  {
+    id: 'broken_bridge',
+    title: '断桥残墨',
+    flavor: '你来到一座断裂的石桥，桥下的墨色深渊中隐约有光芒闪烁。桥头立着一块残碑：「欲渡此桥，需以血为墨。」',
+    weight: 8,
+    minFloor: 1,
+    tags: ['early'],
+    choices: [
+      {
+        text: '「以血为墨」— 流失 8 HP，获得一张稀有卡牌',
+        effects: [{ type: 'hp', value: -8 }, { type: 'card', cardId: 'rare_random' }],
+      },
+      {
+        text: '绕路而行 — 无事发生',
+        effects: [],
+      },
+      {
+        text: '仔细研究碑文 — 需要【墨剑流】卡≥3张方可领悟',
+        effects: [{ type: 'temp_buff', buffId: 'bridge_enlighten', duration: -1 }],
+        requirement: { type: 'cards_in_deck',流派: '墨剑流', minCount: 3 },
+      },
+    ],
+  },
+  {
+    id: 'ink_well',
+    title: '墨泉',
+    flavor: '一汪墨色泉水在月光下泛着涟漪。泉边刻着：「饮墨者，得墨心；贪墨者，失墨魂。」',
+    weight: 8,
+    minFloor: 1,
+    tags: [],
+    choices: [
+      {
+        text: '轻饮一口 — 恢复 30% HP',
+        effects: [{ type: 'hp', value: 0.3 }], // 按比例
+      },
+      {
+        text: '浸泡全身 — 最大HP+10，但当前HP降至1',
+        effects: [{ type: 'max_hp', value: 10 }, { type: 'hp', value: 1 }],
+      },
+      {
+        text: '取墨水写符 — 获得随机墨宝',
+        effects: [{ type: 'relic', relicId: 'random_common' }],
+      },
+    ],
+  },
+  {
+    id: 'wandering_merchant',
+    title: '墨商',
+    flavor: '一位身披墨色斗篷的行商坐在路边，面前摆满了奇形怪状的物件。「客人，我这里有好东西——只要你有足够的墨玉。」',
+    weight: 10,
+    minFloor: 2,
+    tags: [],
+    choices: [
+      {
+        text: '购买卡牌（消耗80金币）',
+        effects: [{ type: 'gold', value: -80 }, { type: 'card', cardId: 'rare_random' }],
+      },
+      {
+        text: '购买墨宝（消耗150金币）',
+        effects: [{ type: 'gold', value: -150 }, { type: 'relic', relicId: 'random_rare' }],
+      },
+      {
+        text: '交易 — 删除一张卡，获得100金币',
+        effects: [{ type: 'remove_card', count: 1 }, { type: 'gold', value: 100 }],
+      },
+    ],
+  },
+  // ... 还有13个事件：墨妖、古画、棋痴、诗鬼、落笔成兵、丹青反噬、...
+];
+
+/** 根据当前楼层和玩家状态过滤可用事件 */
+export function filterEvents(floor: number, playerState: PlayerState): GameEvent[] {
+  return EVENTS.filter(e =>
+    e.minFloor <= floor &&
+    (e.requirement ? meetsRequirement(e.requirement, playerState) : true)
+  );
+}
+</code></pre>
+</div>
+
+<h3>1.3 商店系统</h3>
+
+<div class="card">
+<pre><code>// —————————————— shop/ShopSystem.ts ——————————————
+
+export class ShopSystem {
+  /** 生成商店库存 */
+  static generateInventory(floor: number, rng: SeededRandom): ShopInventory {
+    // 卡牌：根据楼层决定稀有度分布
+    const cardCount = 4 + Math.floor(floor / 3); // 4~7张
+    const cards: ShopCard[] = [];
+
+    for (let i = 0; i < cardCount; i++) {
+      const rarity = this.rollRarity(floor, rng);
+      cards.push({
+        cardId: this.randomCard(rarity, rng),
+        price: this.cardPrice(rarity, floor),
+      });
+    }
+
+    // 墨宝：1-2个
+    const relicCount = 1 + (rng.next() > 0.6 ? 1 : 0);
+    const relics: ShopRelic[] = [];
+    for (let i = 0; i < relicCount; i++) {
+      relics.push({
+        relicId: this.randomRelic(rng),
+        price: 120 + Math.floor(floor * 10),
+      });
+    }
+
+    // 删卡服务
+    const removeCost = 50 + floor * 10; // 每层涨价10
+
+    // 回复药水
+    const potion = {
+      healPercent: 20 + floor * 3, // 20%~50%
+      price: 40 + floor * 5,
+    };
+
+    return { cards, relics, removeCost, potion };
+  }
+
+  private static rollRarity(floor: number, rng: SeededRandom): Rarity {
+    const roll = rng.next();
+    // 低楼层：普通居多；高楼层：稀有/史诗概率提升
+    if (floor <= 3) {
+      if (roll < 0.6) return Rarity.COMMON;
+      if (roll < 0.85) return Rarity.RARE;
+      return Rarity.EPIC;
+    } else {
+      if (roll < 0.3) return Rarity.COMMON;
+      if (roll < 0.6) return Rarity.RARE;
+      if (roll < 0.85) return Rarity.EPIC;
+      return Rarity.LEGENDARY;
+    }
+  }
+
+  private static cardPrice(rarity: Rarity, floor: number): number {
+    const base = { COMMON: 50, RARE: 80, EPIC: 130, LEGENDARY: 200 };
+    return base[rarity] + floor * 5;
+  }
+}
+</code></pre>
+</div>
+
+<h3>1.4 核心卡组构筑系统</h3>
+
+<div class="card">
+<div class="card-title">卡牌数据模型</div>
+<pre><code>// —————————————— cards/CardSystem.ts ——————————————
+
+export enum Rarity { COMMON = '普通', RARE = '稀有', EPIC = '史诗', LEGENDARY = '传说' }
+export enum CardType { ATTACK = '攻击', SKILL = '技能', POWER = '能力', CURSE = '诅咒' }
+export enum School { SWORD = '墨剑流', SHIELD = '墨盾流', SPELL = '墨法流' }
+export enum TargetType { SELF, SINGLE_ENEMY, ALL_ENEMIES, ADJACENT, LINE, ALL }
+
+interface CardTemplate {
+  id: string;
+  name: string;
+  cost: number;           // 费用 0-4
+  type: CardType;
+  school: School;
+  rarity: Rarity;
+  description: string;
+  targetType: TargetType;
+  effects: CardEffect[];
+  upgradeEffects?: CardEffect[];  // 升级后效果
+  /** 卡池稀释因子：设为标准 = 1.0，过高 = 更难刷出 */
+  weight: number;
+}
+
+type CardEffect =
+  | { type: 'damage', base: number, scaling?: number }
+  | { type: 'block', base: number }
+  | { type: 'apply_status', statusId: string, amount: number }
+  | { type: 'draw', count: number }
+  | { type: 'gain_ap', count: number }
+  | { type: 'aoe', base: number }
+  | { type: 'heal', base: number }
+  | { type: 'combo', basePerCombo: number, maxCombo: number }
+  | { type: 'reduce_cost', targetCardId?: string }
+  | { type: 'copy_card', count: number }
+  | { type: 'exhaust' }
+  ;
+
+// ============ MVP 30张卡牌数据库 ============
+
+export const CARD_DATABASE: CardTemplate[] = [
+  // ═══ 墨剑流（攻击导向）═══
+  {
+    id: 'basic_strike', name: '墨斩', cost: 1,
+    type: CardType.ATTACK, school: School.SWORD, rarity: Rarity.COMMON,
+    description: '造成 6 点伤害',
+    targetType: TargetType.SINGLE_ENEMY,
+    effects: [{ type: 'damage', base: 6 }],
+    upgradeEffects: [{ type: 'damage', base: 9 }],
+    weight: 2, // 起始卡，权重高
+  },
+  {
+    id: 'combo_slash', name: '连斩', cost: 1,
+    type: CardType.ATTACK, school: School.SWORD, rarity: Rarity.COMMON,
+    description: '造成 4 点伤害。本回合每使用过一张攻击牌，额外造成 2 伤害',
+    targetType: TargetType.SINGLE_ENEMY,
+    effects: [{ type: 'combo', basePerCombo: 2, maxCombo: 5 }],
+    upgradeEffects: [{ type: 'combo', basePerCombo: 3, maxCombo: 5 }],
+    weight: 1,
+  },
+  {
+    id: 'sword_qi', name: '剑气', cost: 2,
+    type: CardType.ATTACK, school: School.SWORD, rarity: Rarity.RARE,
+    description: '造成 12 点伤害。对所有敌人造成 4 点穿透伤害',
+    targetType: TargetType.SINGLE_ENEMY,
+    effects: [{ type: 'damage', base: 12 }, { type: 'aoe', base: 4 }],
+    upgradeEffects: [{ type: 'damage', base: 16 }, { type: 'aoe', base: 6 }],
+    weight: 1,
+  },
+  {
+    id: 'armor_break', name: '破甲', cost: 1,
+    type: CardType.SKILL, school: School.SWORD, rarity: Rarity.COMMON,
+    description: '使敌人获得 2 层「破甲」：每层被攻击额外受到 3 伤害',
+    targetType: TargetType.SINGLE_ENEMY,
+    effects: [{ type: 'apply_status', statusId: 'armor_break', amount: 2 }],
+    weight: 1,
+  },
+  {
+    id: 'keen_edge', name: '锋芒', cost: 1,
+    type: CardType.POWER, school: School.SWORD, rarity: Rarity.EPIC,
+    description: '本局战斗中，每使用一张攻击牌，获得 1 点临时攻击力',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'apply_status', statusId: 'keen_edge', amount: 1 }],
+    weight: 0.5,
+  },
+  {
+    id: 'thousand_slashes', name: '千刃', cost: 3,
+    type: CardType.ATTACK, school: School.SWORD, rarity: Rarity.LEGENDARY,
+    description: '造成 20 点伤害。若敌人生命值低于 50%，造成双倍伤害',
+    targetType: TargetType.SINGLE_ENEMY,
+    effects: [{ type: 'damage', base: 20 }], // 逻辑在 execution 层处理血量判断
+    upgradeEffects: [{ type: 'damage', base: 28 }],
+    weight: 0.3,
+  },
+
+  // ═══ 墨盾流（防御导向）═══
+  {
+    id: 'basic_defend', name: '墨盾', cost: 1,
+    type: CardType.SKILL, school: School.SHIELD, rarity: Rarity.COMMON,
+    description: '获得 5 点护甲',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'block', base: 5 }],
+    upgradeEffects: [{ type: 'block', base: 8 }],
+    weight: 2,
+  },
+  {
+    id: 'iron_wall', name: '铁壁', cost: 2,
+    type: CardType.SKILL, school: School.SHIELD, rarity: Rarity.RARE,
+    description: '获得 12 点护甲。如果本回合未被攻击，下回合额外获得 6 护甲',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'block', base: 12 }],
+    upgradeEffects: [{ type: 'block', base: 16 }],
+    weight: 1,
+  },
+  {
+    id: 'thorn_bark', name: '荆棘', cost: 1,
+    type: CardType.POWER, school: School.SHIELD, rarity: Rarity.RARE,
+    description: '获得 4 层「荆棘」：每层反弹 3 伤害给攻击者',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'apply_status', statusId: 'thorn', amount: 4 }],
+    weight: 1,
+  },
+  {
+    id: 'fortress', name: '墨垒', cost: 3,
+    type: CardType.POWER, school: School.SHIELD, rarity: Rarity.EPIC,
+    description: '每 5 点护甲上限增加 1 点最大生命值',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'apply_status', statusId: 'fortress', amount: 1 }],
+    weight: 0.5,
+  },
+
+  // ═══ 墨法流（控制/AOE导向）═══
+  {
+    id: 'ink_fire', name: '墨焰', cost: 1,
+    type: CardType.ATTACK, school: School.SPELL, rarity: Rarity.COMMON,
+    description: '造成 4 点伤害。施加 2 层「灼烧」（每层每回合 2 伤害）',
+    targetType: TargetType.SINGLE_ENEMY,
+    effects: [{ type: 'damage', base: 4 }, { type: 'apply_status', statusId: 'burn', amount: 2 }],
+    upgradeEffects: [{ type: 'damage', base: 6 }, { type: 'apply_status', statusId: 'burn', amount: 3 }],
+    weight: 1,
+  },
+  {
+    id: 'frost_nail', name: '墨冰', cost: 2,
+    type: CardType.SKILL, school: School.SPELL, rarity: Rarity.COMMON,
+    description: '对所有敌人施加 2 层「冻结」：每层使其本回合无法行动（上限 3 层）',
+    targetType: TargetType.ALL_ENEMIES,
+    effects: [{ type: 'apply_status', statusId: 'freeze', amount: 2 }],
+    weight: 1,
+  },
+  {
+    id: 'chain_lightning', name: '墨雷', cost: 3,
+    type: CardType.ATTACK, school: School.SPELL, rarity: Rarity.EPIC,
+    description: '对一个敌人造成 10 伤害。连锁弹射 2 次，每次伤害 -3',
+    targetType: TargetType.SINGLE_ENEMY,
+    effects: [{ type: 'damage', base: 10 }], // 连锁逻辑在 execution 层
+    upgradeEffects: [{ type: 'damage', base: 14 }],
+    weight: 0.5,
+  },
+  {
+    id: 'void_ink', name: '虚空墨', cost: 4,
+    type: CardType.ATTACK, school: School.SPELL, rarity: Rarity.LEGENDARY,
+    description: '对所有敌人造成 18 点伤害。消耗',
+    targetType: TargetType.ALL_ENEMIES,
+    effects: [{ type: 'aoe', base: 18 }, { type: 'exhaust' }],
+    weight: 0.3,
+  },
+
+  // ═══ 中立/通用卡 ═══
+  {
+    id: 'draw_ink', name: '泼墨', cost: 0,
+    type: CardType.SKILL, school: School.SWORD, rarity: Rarity.COMMON,
+    description: '抽 1 张牌。消耗',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'draw', count: 1 }, { type: 'exhaust' }],
+    weight: 1,
+  },
+  {
+    id: 'meditate', name: '冥想', cost: 1,
+    type: CardType.SKILL, school: School.SWORD, rarity: Rarity.RARE,
+    description: '获得 1 点行动力。抽 2 张牌',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'gain_ap', count: 1 }, { type: 'draw', count: 2 }],
+    weight: 0.5,
+  },
+  {
+    id: 'ink_shield', name: '墨屏', cost: 2,
+    type: CardType.SKILL, school: School.SHIELD, rarity: Rarity.COMMON,
+    description: '获得 8 点护甲。抽 1 张牌',
+    targetType: TargetType.SELF,
+    effects: [{ type: 'block', base: 8 }, { type: 'draw', count: 1 }],
+    weight: 1,
+  },
+];
+</code></pre>
+</div>
+
+<h3>1.5 数值公式体系</h3>
+
+<div class="card">
+<pre><code>// —————————————— combat/BattleFormulas.ts ——————————————
+
+export class BattleFormulas {
+  /** ═══ 基础伤害公式 ═══
+   *  最终伤害 = (基础攻击力 × 技能倍率 + 额外伤害) × (1 + 暴击加成) × 属性克制 − 护甲
+   *  最少 1 点伤害 */
+  static calcDamage(
+    baseAtk: number, skillDamage: number,
+    target: Enemy, critRate: number, elementBonus: number
+  ): number {
+    const isCrit = Math.random() < critRate;
+    const critMult = isCrit ? 1.5 : 1.0;
+    const raw = (baseAtk + skillDamage) * critMult * (1 + elementBonus);
+    const final = Math.max(1, Math.floor(raw - target.armor));
+    return final;
+  }
+
+  /** ═══ 暴击率公式 ═══
+   *  基础 5% + 每点灵韵 2% + 卡牌/墨宝加成
+   *  上限 80% */
+  static calcCritRate(baseCrit: number, lingyun: number, bonuses: number): number {
+    return Math.min(0.8, baseCrit + lingyun * 0.02 + bonuses);
+  }
+
+  /** ═══ 护甲减伤公式 ═══
+   *  护甲值为绝对减伤（1护甲 = 1伤害减免）
+   *  回合结束时护甲归零 */
+  static applyArmor(damage: number, armor: number): { finalDamage: number; armorRemaining: number } {
+    const absorbed = Math.min(armor, damage);
+    return {
+      finalDamage: damage - absorbed,
+      armorRemaining: armor - absorbed,
+    };
+  }
+
+  /** ═══ 费用效率（卡牌平衡基准） ═══
+   *  1费=1.0x, 2费=2.2x, 3费=3.5x, 4费=5.0x, 0费=0.6x
+   *  用于标准化所有卡牌的数值 */
+  static costEfficiency(cost: number): number {
+    const table: Record<number, number> = { 0: 0.6, 1: 1.0, 2: 2.2, 3: 3.5, 4: 5.0 };
+    return table[cost] ?? 1.0;
+  }
+
+  /** ═══ 敌人难度曲线 ═══
+   *  楼层 → 基础属性映射 */
+  static enemyStats(floor: number, isElite: boolean, isBoss: boolean): EnemyTemplate {
+    const mult = isBoss ? 2.5 : isElite ? 1.6 : 1.0;
+
+    // 非线性曲线：前3层平缓，4-6加速，7-9陡峭
+    const expCurve = (f: number) => 1 + 0.15 * f + 0.02 * f * f;
+
+    return {
+      maxHp: Math.floor(20 * expCurve(floor) * mult),
+      atk: Math.floor(5 * expCurve(floor) * mult * 0.6),
+      armor: Math.floor(3 * expCurve(floor) * (isBoss ? 0.3 : 0)),
+      // ...
+    };
+  }
+
+  /** ═══ 战斗价值标准（参考值） ═══
+   *  1张1费普通卡 = 6点伤害 or 5点护甲
+   *  1 HP ≈ 0.8 金
+   *  1 张卡牌价值 ≈ 50 金（普通）
+   *  删卡价值 = 75 金 */
+  static readonly STANDARDS = {
+    damagePerCost: 6,      // 1费标准伤害
+    blockPerCost: 5,       // 1费标准护甲
+    goldPerHp: 0.8,
+    goldPerCardCommon: 50,
+    goldPerCardRare: 80,
+    goldPerRemove: 75,
+  };
+}
+</code></pre>
+</div>
+
+<h3>1.6 战斗执行引擎</h3>
+
+<div class="card">
+<pre><code>// —————————————— combat/BattleEngine.ts ——————————————
+
+export class BattleEngine {
+  /** 执行一次完整的回合（玩家行动→敌人行动→回合结束结算） */
+  async resolveTurn(turn: Turn): Promise&lt;TurnResult&gt; {
+    Logger.info('Battle', `=== 回合开始: 玩家AP=${turn.playerAp} ===`);
+
+    // Phase 1: 玩家行动阶段（外部事件驱动：玩家拖拽出牌）
+    // 由 UI 层调用 playCard()，每打一张卡触发一次效果
+    // 玩家可以消耗所有行动力，也可以提前结束回合
+
+    // Phase 2: 敌人行动阶段
+    for (const enemy of turn.enemies) {
+      if (enemy.isDead) continue;
+
+      // 冻结检测
+      if (enemy.status.freeze > 0) {
+        enemy.status.freeze--;
+        Logger.info('Battle', `${enemy.name} 被冻结，跳过行动`);
+        continue;
+      }
+
+      // 敌人 AI
+      const action = this.enemyAI(enemy, turn.player);
+      if (action.type === 'ATTACK') {
+        const dmg = this.calcEnemyDamage(enemy, action.value);
+        const { finalDamage } = BattleFormulas.applyArmor(dmg, turn.player.armor);
+        turn.player.hp -= finalDamage;
+
+        // 荆棘反伤
+        if (turn.player.status.thorn > 0) {
+          const thornDmg = turn.player.status.thorn * 3;
+          enemy.hp -= thornDmg;
+          Logger.info('Battle', `荆棘反伤 ${thornDmg} 给 ${enemy.name}`);
+        }
+      }
+    }
+
+    // Phase 3: 回合结束结算
+    // 灼烧伤害
+    for (const enemy of turn.enemies) {
+      if (enemy.status.burn > 0) {
+        enemy.hp -= enemy.status.burn * 2;
+      }
+    }
+
+    // 护甲清零
+    turn.player.armor = 0;
+
+    // 抽牌（新回合）
+    const cardsDrawn = turn.player.drawCards(4);
+
+    Logger.info('Battle', `=== 回合结束: 玩家HP=${turn.player.hp}/${turn.player.maxHp} ===`);
+    return { player: turn.player, enemies: turn.enemies, cardsDrawn };
+  }
+
+  /** 敌人 AI — 根据敌人类型选择行动 */
+  private enemyAI(enemy: Enemy, player: Player): EnemyAction {
+    // 简单 AI：优先攻击低血量玩家
+    if (player.hp < player.maxHp * 0.3 && Math.random() < 0.6) {
+      return { type: 'ATTACK', value: enemy.atk * 1.5 }; // 斩杀
+    }
+    if (enemy.status.armor_break > 0) {
+      return { type: 'ATTACK', value: enemy.atk * 1.3 }; // 破甲后追击
+    }
+    if (enemy.hp < enemy.maxHp * 0.3 && Math.random() < 0.4) {
+      return { type: 'BUFF', value: 3 }; // 残血狂暴
+    }
+    return { type: 'ATTACK', value: enemy.atk };
+  }
+}
+</code></pre>
+</div>
+
+<h3>1.7 自动平衡模拟器</h3>
+
+<div class="card">
+<pre><code># —————————————— scripts/simulate_balance.py ——————————————
+# 用蒙特卡洛模拟验证数值平衡
+
+import random
+import json
+from dataclasses import dataclass
+from typing import List
+
+@dataclass
+class SimConfig:
+    runs: int = 1000
+    seed: int = 42
+    strategies: List[str] = None  # ['sword', 'shield', 'spell', 'random']
+
+def simulate_run(strategy: str, rng: random.Random) -> dict:
+    """模拟一局游戏的简化版本"""
+    hp = 60
+    max_hp = 60
+    atk = 8
+    floor = 1
+    deck = ['basic_strike'] * 5 + ['basic_defend'] * 5  # 起始10张
+
+    while floor <= 10 and hp > 0:
+        # 战斗简化模型
+        enemy_hp = 20 + 15 * floor
+        enemy_atk = 5 + 3 * floor
+
+        # 玩家出牌循环（简化：体力全用完）
+        for turn in range(10):
+            if enemy_hp <= 0:
+                break
+            # 根据策略选择行动
+            if strategy == 'sword':
+                dmg = 8 + atk * 0.5 * floor
+                enemy_hp -= dmg
+            elif strategy == 'shield':
+                # 防守反击
+                dmg = 4 + atk * 0.3 * floor
+                enemy_hp -= dmg
+                hp = min(max_hp, hp + 2)
+            elif strategy == 'spell':
+                dmg = 6 * (1 + 0.2 * floor)
+                enemy_hp -= dmg
+                # AOE 优势：敌人多的场合更强，这里简化
+            else:  # random
+                dmg = 6 + random.randint(-2, 4)
+                enemy_hp -= dmg
+
+            # 敌人攻击
+            hp -= max(0, enemy_atk - 3)
+
+        if hp <= 0:
+            return {'won': False, 'floor': floor, 'hp_remain': 0}
+
+        # 升级奖励
+        hp = min(max_hp, hp + 10)
+        floor += 1
+
+    return {'won': hp > 0, 'floor': floor - 1, 'hp_remain': max(0, hp)}
+
+def run_balance_test():
+    config = SimConfig(runs=5000)
+    results = {s: {'wins': 0, 'total': 0} for s in ['sword', 'shield', 'spell', 'random']}
+
+    for strategy in results:
+        rng = random.Random(config.seed)
+        for _ in range(config.runs):
+            result = simulate_run(strategy, rng)
+            results[strategy]['total'] += 1
+            if result['won']:
+                results[strategy]['wins'] += 1
+
+    print(f"{'='*50}")
+    print(f"平衡性模拟结果（每策略 {config.runs} 局）")
+    print(f"{'='*50}")
+    for strategy, data in results.items():
+        win_rate = data['wins'] / data['total'] * 100
+        print(f"  {strategy:>8}: {win_rate:5.1f}% 通关率")
+
+    # 判定：最大差值 &lt; 8% 为通过
+    rates = [d['wins']/d['total'] for d in results.values()]
+    max_diff = max(rates) - min(rates)
+    print(f"\n  最大差值: {max_diff*100:.1f}%")
+    print(f"  结果: {'✅ 通过' if max_diff < 0.08 else '❌ 需调整'}")
+
+if __name__ == '__main__':
+    run_balance_test()
+</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第二章：世界观与沉浸感 -->
+<!-- ═══════════════════════════════════ -->
+<h2>二、世界观与沉浸感设计</h2>
+
+<h3>2.1 核心设定：墨境世界</h3>
+
+<div class="story-box">
+<p><strong>「天地初分，清气上升为天，浊气下沉为地。有一位画圣以天地为纸、山河为墨，绘出了这方世界——墨境。」</strong></p>
+<p>墨境（Ink Realm）是一个由「墨力」构成的世界。万物皆由墨意凝结而成：山是泼墨的堆叠，水是淡墨的流淌，生灵是点墨的活化。</p>
+<p>千年前，画圣以《万灵图》封印了九大墨兽，维持着墨境的平衡。但如今封印松动，墨兽的气息开始侵染这片土地。玩家扮演的「墨修者」，是画圣留下的最后血脉，必须深入墨境九层，重绘封印。</p>
+</div>
+
+<h3>2.2 世界观与玩法融合</h3>
+
+<table>
+<tr><th>游戏机制</th><th>世界观解释</th><th>沉浸感设计</th></tr>
+<tr>
+  <td>卡牌</td>
+  <td>每一张卡牌是一道「墨符」——画圣流传的笔墨法术</td>
+  <td>卡牌插画是水墨风格的咒符图案；出牌时伴有墨迹飞溅粒子</td>
+</tr>
+<tr>
+  <td>卡组构筑</td>
+  <td>墨修者通过研习不同流派的墨符，形成自己的「墨道」</td>
+  <td>流派切换时角色外观变化（墨色缭绕效果不同）</td>
+</tr>
+<tr>
+  <td>HP</td>
+  <td>「墨魂」——墨修者的生命本源，墨力耗竭则消散</td>
+  <td>血条设计为墨砚中的墨水量，低血量时角色变为淡墨色</td>
+</tr>
+<tr>
+  <td>护甲</td>
+  <td>「墨甲」——以墨力凝结的防护层</td>
+  <td>护盾显示为角色周围旋转的墨色符文字环</td>
+</tr>
+<tr>
+  <td>金币</td>
+  <td>「墨玉」——墨境中流通的货币，由凝聚的墨力结晶制成</td>
+  <td>拾取动画为墨绿色晶石飞入口袋</td>
+</tr>
+<tr>
+  <td>墨宝（遗物）</td>
+  <td>上古墨修者遗留的法器，蕴含残缺的墨道真意</td>
+  <td>每个墨宝有独立的水墨典故描述</td>
+</tr>
+<tr>
+  <td>敌人</td>
+  <td>被墨兽气息污染的墨境生灵——墨化妖兽</td>
+  <td>敌人设计为传统水墨画中的异兽：墨蛟、墨虎、墨蛛</td>
+</tr>
+<tr>
+  <td>BOSS</td>
+  <td>封印中的九大墨兽之一的残影</td>
+  <td>每层BOSS都有独立出场动画和背景故事</td>
+</tr>
+<tr>
+  <td>随机事件</td>
+  <td>墨境中残存的上古记忆片段</td>
+  <td>事件以水墨卷轴动画展开，配古文风文案</td>
+</tr>
+<tr>
+  <td>路线选择</td>
+  <td>画圣留下的九层墨境塔。每层有不同路径通往深处</td>
+  <td>地图渲染为水墨山水长卷，节点为墨点标记</td>
+</tr>
+</table>
+
+<h3>2.3 剧情框架（三幕式）</h3>
+
+<div class="card">
+<table>
+<tr><th>幕</th><th>楼层</th><th>剧情</th><th>解锁内容</th></tr>
+<tr>
+  <td><strong>序幕：墨醒</strong></td>
+  <td>1-3层</td>
+  <td>墨修者在山野中醒来，发现封印已开始破裂。通过前三层学会基本墨符，击退第一只墨兽残影</td>
+  <td>角色解锁、基础卡牌、新手墨宝</td>
+</tr>
+<tr>
+  <td><strong>中幕：墨战</strong></td>
+  <td>4-6层</td>
+  <td>深入墨境腹地，发现墨兽气息的来源——有人类在暗中协助封印的破坏。遇到其他幸存墨修者（NPC）</td>
+  <td>流派专属卡牌、稀有墨宝、事件链</td>
+</tr>
+<tr>
+  <td><strong>终幕：墨归</strong></td>
+  <td>7-10层</td>
+  <td>发现真相：画圣其实是一千年前的墨修者，封印本身就在消耗他的残魂。玩家面临选择——彻底封印墨兽（牺牲画圣）或与之融合（获得力量但世界改变）</td>
+  <td>传说卡牌、最终BOSS二阶段</td>
+</tr>
+</table>
+</div>
+
+<h3>2.4 沉浸感增强设计</h3>
+
+<div class="card">
+<pre><code>// —————————————— ui/ImmersionSystem.ts ——————————————
+
+export class ImmersionSystem {
+  /** ═══ 场景叙事（进入新楼层时触发）══════ */
+  static floorNarration(floor: number): string {
+    const narrations: Record&lt;number, string&gt; = {
+      1: '你站在墨境的边缘。前方的路仿佛被墨色晕染开，延伸到不可知的深处。\n风里传来画圣的低语：「墨本无心，绘者有意…」',
+      4: '墨意开始变得浓郁而压抑。空气中弥漫着未干的水墨气息。\n你注意到地面上的脚印——除了你的，还有别的什么。',
+      7: '这里的墨力已经狂暴如沸。每一口呼吸都像是在饮用浓墨。\n远处的黑暗中，有什么巨大的东西在移动…',
+      10: '封印之地。九道墨色锁链从天穹垂下，锁链的尽头是一个蜷缩的人形——画圣。\n他的身体已经半透明，如同褪色的水墨画。',
+    };
+    return narrations[floor] || '';
+  }
+
+  /** ═══ 墨宝典故 ═══ */
+  static relicDescription(relicId: string): { name: string; lore: string; effect: string } {
+    const relics: Record&lt;string, { name: string; lore: string; effect: string }&gt; = {
+      'broken_brush': {
+        name: '断笔',
+        lore: '画圣幼时习画的第一支笔，笔杆已裂。但正因残缺，反而能画出最本真的墨意。',
+        effect: '每回合第一次出牌费用 -1',
+      },
+      'ink_stone_fragment': {
+        name: '残砚',
+        lore: '一方上古墨砚的碎片。据说完整的砚台可以倒映出人心中的墨。碎片虽小，仍能聚墨成锋。',
+        effect: '战斗开始时获得 3 点行动力（仅首回合）',
+      },
+      'dragon_vein_ink': {
+        name: '龙脉墨',
+        lore: '传说中以龙骨烧制成的墨条。研磨时散发龙威，寻常妖兽不敢近身。',
+        effect: '每击败一个敌人，恢复 5 HP',
+      },
+      'scroll_of_wanling': {
+        name: '万灵图残卷',
+        lore: '画圣封印墨兽时所绘的《万灵图》残片。虽已残缺，但仍能感受到其中蕴含的浩瀚墨力。',
+        effect: '每场战斗第一次受伤减半',
+      },
+    };
+    return relics[relicId] || { name: '未知墨宝', lore: '墨意流转，不知其名。', effect: '效果未知' };
+  }
+
+  /** ═══ 战斗开场白（敌人类型 → 台词） ═══ */
+  static enemyIntro(enemyType: string): string {
+    const intros: Record&lt;string, string&gt; = {
+      'ink_tiger': '"吼——！" 一只通体墨色的巨虎从暗处跃出，它的皮毛上流淌着浓稠的墨汁，所过之处留下一道道黑色的爪痕。',
+      'ink_serpent': '地面裂开，一条墨色巨蟒从中钻出。它的鳞片是一片片凝固的墨块，竖瞳中燃烧着幽绿的光芒。',
+      'ink_spider': '你头顶传来窸窣声。一只八足墨蛛倒悬在墨丝上，它的腹部绘着一张扭曲的符咒。',
+      'boss_1': '大地震颤。一只由浓墨凝结而成的巨掌从虚空中拍落。紧接着，一个如山峦般的身影缓缓凝聚——第一墨兽「墨饕餮」。',
+    };
+    return intros[enemyType] || '一个墨色身影从暗处显现。';
+  }
+}
+</code></pre>
+</div>
+
+<h3>2.5 角色设计</h3>
+
+<table>
+<tr><th>角色</th><th>身份</th><th>初始牌组特点</th><th>外观</th></tr>
+<tr>
+  <td><strong>墨言</strong>（默认）</td>
+  <td>画圣末裔，墨修者</td>
+  <td>均衡型：3墨斩 + 3墨盾 + 2泼墨 + 2冥想</td>
+  <td>白衣墨染的少年/少女，手持一支毛笔</td>
+</tr>
+<tr>
+  <td><strong>铁墨</strong>（通关解锁）</td>
+  <td>墨盾流宗师</td>
+  <td>防御型：4墨盾 + 2铁壁 + 2荆棘 + 1墨屏 + 1墨斩</td>
+  <td>身披墨色重甲，背负巨碑，步履沉稳</td>
+</tr>
+<tr>
+  <td><strong>凌锋</strong>（通关解锁）</td>
+  <td>墨剑流剑客</td>
+  <td>攻击型：3连斩 + 2破甲 + 2锋芒 + 2墨斩 + 1泼墨</td>
+  <td>黑衣劲装，腰间斜挎一柄墨色长剑，目光锐利</td>
+</tr>
+<tr>
+  <td><strong>墨玄</strong>（通关解锁）</td>
+  <td>墨法流术士</td>
+  <td>法术型：2墨焰 + 2墨冰 + 2墨雷 + 2冥想 + 2泼墨</td>
+  <td>紫色墨袍，周身漂浮着未干的墨滴符文</td>
+</tr>
+</table>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第三章：本地 RTX5070 美术管线 -->
+<!-- ═══════════════════════════════════ -->
+<h2>三、本地 RTX5070 美术素材生成管线</h2>
+
+<h3>3.1 环境概览</h3>
+<div class="card">
+<table>
+<tr><th>项目</th><th>规格</th></tr>
+<tr><td>GPU</td><td>NVIDIA GeForce RTX 5070 — 12GB VRAM</td></tr>
+<tr><td>Driver</td><td>596.49, CUDA 13.2</td></tr>
+<tr><td>Python</td><td>3.13.12 (ComfyUI venv)</td></tr>
+<tr><td>ComfyUI</td><td><code>C:\Users\Yan Zhao\ComfyUI\</code> ✅</td></tr>
+<tr><td>启动命令</td><td><code>python main.py</code> (在 ComfyUI 目录下)</td></tr>
+<tr><td>浏览器访问</td><td><code>http://127.0.0.1:8188</code></td></tr>
+</table>
+</div>
+
+<h3>3.2 安装步骤（已完成）</h3>
+
+<div class="card">
+<pre><code># ═══ 步骤1：ComfyUI 安装（已执行）══════
+cd /c/Users/Yan_Zhao/ComfyUI
+git clone https://github.com/comfyanonymous/ComfyUI.git .
+
+# ═══ 步骤2：Python venv + CUDA PyTorch（后台安装中）══════
+python -m venv venv
+source venv/Scripts/activate
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+# ═══ 步骤3：ComfyUI 依赖（安装完成后执行）══════
+cd /c/Users/Yan_Zhao/ComfyUI
+source venv/Scripts/activate
+pip install -r requirements.txt
+</code></pre>
+</div>
+
+<h3>3.3 模型下载（像素水墨风）</h3>
+
+<div class="card">
+<p>RTX 5070 12GB VRAM 可运行的推荐模型组合：</p>
+
+<table>
+<tr><th>模型</th><th>类型</th><th>大小</th><th>下载命令</th><th>用途</th></tr>
+<tr>
+  <td><strong>pixel-art-xl</strong></td>
+  <td>SDXL</td>
+  <td>~6GB</td>
+  <td><code>wget https://huggingface.co/.../pixel-art-xl.safetensors</code></td>
+  <td>像素风基底模型（主模型）</td>
+</tr>
+<tr>
+  <td><strong>inkpunk-diffusion</strong></td>
+  <td>SD 1.5</td>
+  <td>~2GB</td>
+  <td>HuggingFace: <code>Envvi/Inkpunk-Diffusion</code></td>
+  <td>水墨+赛博融合风格</td>
+</tr>
+<tr>
+  <td><strong>flat-2d-animerge</strong></td>
+  <td>SD 1.5</td>
+  <td>~2GB</td>
+  <td>HuggingFace: <code>Lykon/Flat-2D-Animerge</code></td>
+  <td>2D扁平风格（可配合LoRA转水墨）</td>
+</tr>
+<tr>
+  <td><strong>controlnet-canny-sdxl</strong></td>
+  <td>ControlNet</td>
+  <td>~1.5GB</td>
+  <td>ComfyUI Manager 自动安装</td>
+  <td>边缘控制 → 精确控型</td>
+</tr>
+<tr>
+  <td><strong>LoRA: pixel-art-lora</strong></td>
+  <td>LoRA</td>
+  <td>~50MB</td>
+  <td>CivitAI: <code>pixel-art-lora</code></td>
+  <td>画风微调 → 像素化</td>
+</tr>
+<tr>
+  <td><strong>LoRA: ink-wash-lora</strong></td>
+  <td>LoRA</td>
+  <td>~50MB</td>
+  <td>CivitAI: <code>ink-wash-style</code></td>
+  <td>画风微调 → 水墨化</td>
+</tr>
+</table>
+
+<pre><code># ═══ 批量下载模型脚本 ═══
+# 保存为 ComfyUI/download_models.sh 后执行
+
+# 模型放在: ComfyUI/models/checkpoints/
+# LoRA 放在: ComfyUI/models/loras/
+# ControlNet 放在: ComfyUI/models/controlnet/
+
+# 由于国内访问 HuggingFace 可能慢，可使用镜像
+export HF_ENDPOINT=https://hf-mirror.com
+
+# 方法1：使用 ComfyUI Manager 的模型下载功能
+# 1. 启动 ComfyUI
+# 2. 打开 http://127.0.0.1:8188
+# 3. 点击 Manager → Install Models → 搜索 pixel, ink, 2d
+
+# 方法2：手动下载关键模型（推荐先下这3个）
+cd /c/Users/Yan_Zhao/ComfyUI/models/checkpoints/
+# 像素风格主模型（优先）
+pip install huggingface-hub
+huggingface-cli download wavymulder/pixel-art-xl --local-dir ./ --local-dir-use-symlinks False 2>&1
+
+# 水墨LoRA（小文件，下载快）
+cd /c/Users/Yan_Zhao/ComfyUI/models/loras/
+# 从CivitAI手动下载或从HF镜像拉取
+</code></pre>
+</div>
+
+<h3>3.4 像素水墨风 Prompt 体系</h3>
+
+<div class="card">
+<div class="card-title">Prompt 模板（SDXL + Pixel-Art-XL + Ink-Wash LoRA）</div>
+<pre><code># ═══ 角色精灵图（像素水墨风） ═══
+CHARACTER_PROMPT = """
+pixel art, ink wash painting style, traditional Chinese painting,
+{character_description},
+2D game sprite, full body view, standing idle pose,
+16-bit pixel resolution, dithering effects,
+black and white main colors, vermillion red and indigo blue accents,
+brush stroke textures, ink splatter details,
+transparent background, game asset, clean edges,
+--neg low quality, blurry, photorealistic, 3D, modern, gradient
+"""
+
+# ═══ 卡牌插画（像素水墨风） ═══
+CARD_PROMPT = """
+pixel art, ink wash style,
+{card_scene_description},
+card illustration, vertical composition,
+low saturation, high contrast ink effects,
+visible pixel grid, retro game aesthetic,
+Chinese fantasy theme, minimalist composition,
+top space reserved for text,
+solid color background for easy cropping,
+--neg photorealistic, 3D render, oil painting, complex background, text, watermark
+"""
+
+# ═══ 场景/棋盘背景 ═══
+SCENE_PROMPT = """
+pixel art landscape, ink wash painting,
+{scene_description},
+isometric or top-down view, game background tile,
+color palette: ink black, paper white, grey washes, subtle vermillion,
+dithering gradients, retro pixel aesthetic,
+--neg realistic, blurry, 3D, smooth gradients
+"""
+</code></pre>
+</div>
+
+<h3>3.5 ComfyUI 工作流（像素水墨角色生成）</h3>
+
+<div class="card">
+<div class="card-title">工作流 JSON（API 格式）</div>
+<p>保存为 <code>ComfyUI/workflows/pixel_ink_character.json</code></p>
+<pre><code>{
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 7,
+      "denoise": 1,
+      "latent_image": ["5", 0],
+      "model": ["4", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "seed": 42,
+      "steps": 25
+    }
+  },
+  "4": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "pixel-art-xl.safetensors"
+    }
+  },
+  "5": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "batch_size": 1,
+      "height": 1024,
+      "width": 1024
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["4", 1],
+      "text": "pixel art, ink wash style, {prompt}"
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["4", 1],
+      "text": "{negative_prompt}"
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["4", 2]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "ink_realm_char",
+      "images": ["8", 0]
+    }
+  },
+  "10": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": ["4", 0],
+      "clip": ["4", 1],
+      "lora_name": "ink-wash-lora.safetensors",
+      "strength_model": 0.6,
+      "strength_clip": 0.6
+    }
+  }
+}
+</code></pre>
+</div>
+
+<h3>3.6 逐像素后处理：像素化 + 水墨化</h3>
+
+<div class="card">
+<pre><code># —————————————— scripts/pixel_ink_postprocess.py ——————————————
+# 对 AI 生成的图片做后处理，确保「像素水墨风」一致性
+
+from PIL import Image, ImageEnhance, ImageFilter
+import numpy as np
+from pathlib import Path
+
+def pixelize(img: Image.Image, pixel_size: int = 8) -> Image.Image:
+    """将图像像素化（降采样 + 最近邻放大）"""
+    w, h = img.size
+    small = img.resize((w // pixel_size, h // pixel_size), Image.NEAREST)
+    return small.resize((w, h), Image.NEAREST)
+
+def ink_wash_effect(img: Image.Image) -> Image.Image:
+    """模拟水墨效果：去饱和 + 高对比 + 墨迹边缘"""
+    img = img.convert("RGBA")
+
+    # 1. 去饱和（水墨风格 = 低饱和高对比）
+    arr = np.array(img)
+    gray = arr[:,:,:3].mean(axis=2, keepdims=True)
+    arr[:,:,:3] = (0.75 * gray + 0.25 * arr[:,:,:3]).astype(np.uint8)
+
+    # 2. 对比度增强
+    enhancer = ImageEnhance.Contrast(Image.fromarray(arr))
+    img = enhancer.enhance(1.5)
+
+    # 3. 墨迹边缘（边缘检测 → 加深）
+    edges = img.filter(ImageFilter.FIND_EDGES).convert("L")
+    edge_arr = np.array(edges)
+    edge_mask = edge_arr > 30
+
+    arr = np.array(img)
+    # 边缘像素加深
+    arr[edge_mask, :3] = (arr[edge_mask, :3] * 0.6).astype(np.uint8)
+    img = Image.fromarray(arr)
+
+    return img
+
+def pixel_ink_pipeline(input_path: str, output_path: str, pixel_size: int = 8):
+    """完整管线：像素化 → 水墨化 → 保存"""
+    img = Image.open(input_path).convert("RGBA")
+    img = pixelize(img, pixel_size)
+    img = ink_wash_effect(img)
+    img.save(output_path, "PNG")
+    print(f"  ✓ {Path(input_path).name} → 像素水墨处理完成 ({output_path})")
+
+# 批量处理
+if __name__ == '__main__':
+    input_dir = Path("generated_assets/raw")
+    output_dir = Path("generated_assets/processed")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for p in input_dir.glob("*.png"):
+        pixel_ink_pipeline(str(p), str(output_dir / p.name), pixel_size=8)
+        # 同时生成2x版本（大像素可做备用）
+        pixel_ink_pipeline(str(p), str(output_dir / f"{p.stem}_hd{p.suffix}"), pixel_size=4)
+</code></pre>
+</div>
+
+<h3>3.7 本地调用脚本（开箱即用）</h3>
+
+<div class="card">
+<pre><code># —————————————— scripts/generate_asset.py ——————————————
+# 本地调用 ComfyUI API 生成像素水墨素材
+# 用法: python generate_asset.py --prompt "..." --output hero.png
+
+import requests
+import json
+import uuid
+import time
+import argparse
+from pathlib import Path
+
+COMFYUI_URL = "http://127.0.0.1:8188"
+WORKFLOW_PATH = "../workflows/pixel_ink_character.json"
+
+def load_workflow():
+    with open(WORKFLOW_PATH, 'r') as f:
+        return json.load(f)
+
+def generate(prompt: str, negative: str = "", seed: int = -1):
+    workflow = load_workflow()
+
+    # 替换 prompt
+    for node_id, node in workflow.items():
+        if node["class_type"] == "CLIPTextEncode":
+            if "positive" in str(node_id) or node.get("inputs", {}).get("text", "").startswith("pixel art"):
+                node["inputs"]["text"] = f"pixel art, ink wash style, {prompt}"
+            else:
+                node["inputs"]["text"] = negative or "low quality, blurry, ugly"
+
+    # 替换 seed
+    for node_id, node in workflow.items():
+        if node["class_type"] == "KSampler":
+            node["inputs"]["seed"] = seed if seed >= 0 else random.randint(0, 2**31)
+
+    # 提交任务
+    payload = {
+        "prompt": workflow,
+        "client_id": "ink-realm-generator",
+    }
+    resp = requests.post(f"{COMFYUI_URL}/prompt", json=payload)
+    data = resp.json()
+    prompt_id = data["prompt_id"]
+    print(f"任务已提交: {prompt_id}")
+
+    # 轮询等待完成
+    while True:
+        status = requests.get(f"{COMFYUI_URL}/history/{prompt_id}").json()
+        if prompt_id in status:
+            outputs = status[prompt_id]["outputs"]
+            for node_id, node_out in outputs.items():
+                for img_data in node_out.get("images", []):
+                    # 下载生成的图片
+                    img_url = f"{COMFYUI_URL}/view?filename={img_data['filename']}&subfolder={img_data['subfolder']}"
+                    return img_url
+            break
+        time.sleep(2)
+
+    return None
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='像素水墨素材生成')
+    parser.add_argument('--prompt', required=True, help='生成 prompt')
+    parser.add_argument('--output', default='output.png', help='输出路径')
+    parser.add_argument('--seed', type=int, default=-1, help='随机种子')
+    args = parser.parse_args()
+
+    img_url = generate(args.prompt, seed=args.seed)
+    if img_url:
+        img_data = requests.get(img_url).content
+        Path(args.output).write_bytes(img_data)
+        print(f"✅ 图片已保存: {args.output}")
+</code></pre>
+</div>
+
+<h3>3.8 RTX 5070 优化参数</h3>
+
+<div class="card">
+<table>
+<tr><th>参数</th><th>推荐值</th><th>理由</th></tr>
+<tr><td>采样步数</td><td>20-25</td><td>12GB VRAM 能跑 SDXL，步数太高显存溢出</td></tr>
+<tr><td>分辨率</td><td>1024×1024（角色/卡牌）<br>768×768（棋子）<br>2048×2048（场景，分块）</td><td>SDXL 原生分辨率 1024</td></tr>
+<tr><td>Batch Size</td><td>1-2</td><td>12GB 只能同时跑1张 SDXL，SD1.5可跑2张</td></tr>
+<tr><td>采样器</td><td>euler + normal scheduler</td><td>速度快，质量可接受</td></tr>
+<tr><td>VAE</td><td>sdxl_vae</td><td>SDXL 原生 VAE</td></tr>
+<tr><td>ControlNet</td><td>Canny（启用时降低到 768×768）</td><td>ControlNet 额外消耗 ~2GB</td></tr>
+<tr><td>LoRA 强度</td><td>0.4-0.6</td><td>过高会覆盖基底模型风格</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 第四章：像素水墨风格指南 -->
+<!-- ═══════════════════════════════════ -->
+<h2>四、像素水墨风（Pixel Ink-Wash）风格指南</h2>
+
+<h3>4.1 风格定义</h3>
+
+<div class="card">
+<p><strong>像素水墨风</strong> = 像素艺术（Pixel Art）的网格约束 + 水墨画（Ink Wash）的笔触质感。</p>
+<p>不是简单地把水墨画分辨率降低，而是在像素的离散网格上模拟毛笔的「飞白」「晕染」「枯笔」效果。</p>
+
+<table>
+<tr><th>维度</th><th>像素艺术</th><th>水墨画</th><th>像素水墨（融合）</th></tr>
+<tr><td>颜色</td><td>有限色板，平涂</td><td>黑白灰，灰度渐变</td><td>8-16色有限色板 + 水墨灰度</td></tr>
+<tr><td>线条</td><td>硬边锯齿</td><td>飞白、枯笔、粗细变化</td><td>锯齿模拟飞白（用像素抖动表现笔触）</td></tr>
+<tr><td>纹理</td><td>无/纯色填色</td><td>宣纸纹理、墨迹扩散</td><td>像素级抖动（Dithering）模拟墨迹晕染</td></tr>
+<tr><td>阴影</td><td>硬边暗面</td><td>泼墨渐变</td><td>递进式像素渐变（1px 步进）</td></tr>
+<tr><td>背景</td><td>纯色/透明</td><td>留白</td><td>宣纸米白底色 + 大片留白</td></tr>
+</table>
+</div>
+
+<h3>4.2 色板定义</h3>
+
+<div class="card">
+<pre><code>// —————————————— style/InkPalette.ts ——————————————
+// 像素水墨风的16色调色板
+
+export const INK_PALETTE = {
+  // 墨色系（主色调）
+  INK_BLACK:     '#1a1a1a',  // 浓墨（最黑）
+  INK_DARK:      '#3a3a3a',  // 深墨
+  INK_MID:       '#6a6a6a',  // 中墨
+  INK_LIGHT:     '#9a9a9a',  // 淡墨
+  INK_FADED:     '#c8c8c8',  // 枯墨
+
+  // 纸色系（背景色）
+  PAPER_WHITE:   '#f5f0e8',  // 宣纸白
+  PAPER_LIGHT:   '#ede5d0',  // 旧纸色
+  PAPER_DARK:    '#d8d0b8',  // 泛黄纸
+
+  // 彩色点缀（低饱和度）
+  VERMILLION:    '#c04040',  // 朱红
+  DEEP_RED:      '#8a2020',  // 深红
+  INDIGO:        '#404080',  // 靛蓝
+  DEEP_BLUE:     '#202060',  // 深蓝
+  JADE:          '#408060',  // 翠绿
+  DARK_GREEN:    '#205040',  // 墨绿
+  GOLD:          '#b09040',  // 金色
+  PURPLE:        '#603080',  // 紫
+
+  // 特效色（纯色，用于UI高亮）
+  GLOW_WHITE:    '#ffffff',
+  GLOW_RED:      '#ff4040',
+};
+
+// 游戏中使用色板索引而非直接颜色值
+export type InkColor = keyof typeof INK_PALETTE;
+</code></pre>
+</div>
+
+<h3>4.3 像素水墨渲染示例</h3>
+
+<div class="card">
+<pre><code>// —————————————— style/InkRenderer.ts ——————————————
+// Phaser 中的像素水墨渲染器
+
+export class InkRenderer {
+  /** 使用 CanvasTexture 绘制像素水墨风棋盘格子 */
+  static drawInkCell(
+    canvas: Phaser.Textures.CanvasTexture,
+    col: number, row: number,
+    cellSize: number
+  ): void {
+    const ctx = canvas.context;
+    const x = col * cellSize, y = row * cellSize;
+
+    // 像素风格的墨色格子边框（用1px硬边）
+    ctx.strokeStyle = INK_PALETTE.INK_MID;
+    ctx.lineWidth = 1;
+
+    // 用像素模拟「毛笔顿笔」效果：角落加粗
+    // 左上角
+    ctx.fillStyle = INK_PALETTE.INK_DARK;
+    ctx.fillRect(x, y, 3, 3);
+    // 右下角
+    ctx.fillRect(x + cellSize - 3, y + cellSize - 3, 3, 3);
+
+    // 抖动（Dithering）模拟墨迹晕染
+    this.drawInkSplatter(ctx, x + cellSize / 2, y + cellSize / 2, cellSize * 0.08);
+  }
+
+  /** 像素级墨迹抖动效果 */
+  private static drawInkSplatter(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number, radius: number
+  ): void {
+    // 使用 Bayer 矩阵阈值抖动
+    const bayer4x4 = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5],
+    ];
+
+    const r = Math.ceil(radius);
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > radius) continue;
+
+        // 用 Bayer 矩阵决定是否画这个像素
+        const threshold = bayer4x4[(dy + r) % 4][(dx + r) % 4] / 16;
+        const density = 1 - (dist / radius);
+
+        if (density > threshold) {
+          const alpha = Math.floor(density * 200);
+          ctx.fillStyle = `rgba(50, 45, 40, ${alpha})`;
+          ctx.fillRect(
+            Math.floor(cx) + dx,
+            Math.floor(cy) + dy,
+            1, 1
+          );
+        }
+      }
+    }
+  }
+}
+</code></pre>
+</div>
+
+<h3>4.4 像素水墨动画原则</h3>
+
+<div class="card">
+<table>
+<tr><th>原则</th><th>说明</th><th>代码实现</th></tr>
+<tr>
+  <td>帧数精简</td>
+  <td>像素动画通常 4-8 帧即可，不需要60fps平滑</td>
+  <td>角色动画 4方向×3帧行走 + 1帧待机</td>
+</tr>
+<tr>
+  <td>关键帧强调</td>
+  <td>用「顿帧」和「拉伸」代替缓动曲线</td>
+  <td>攻击动画：蓄力(hold 3帧)→爆发(1帧)→恢复</td>
+</tr>
+<tr>
+  <td>墨迹粒子</td>
+  <td>粒子系统使用 INK_PALETTE 色板，低帧率渲染</td>
+  <td>Phaser particle emitter, 帧率锁定 15fps</td>
+</tr>
+<tr>
+  <td>像素级变换</td>
+  <td>移动/缩放限制为整数像素（避免sub-pixel模糊）</td>
+  <td><code>Math.round(x)</code> / <code>Math.floor(y)</code></td>
+</tr>
+<tr>
+  <td>无半透明过度</td>
+  <td>像素风没有半透明渐变，只有硬过渡或抖动</td>
+  <td>alpha 只设 0 或 255，过渡用棋盘抖动</td>
+</tr>
+</table>
+
+<pre><code>// —————————————— 像素动画示例（攻击动作）——————————————
+class PixelAnimation {
+  update() {
+    // 锁定为整数坐标，避免子像素模糊
+    this.sprite.x = Math.round(this.targetX);
+    this.sprite.y = Math.floor(this.targetY);
+
+    // 攻击帧：3帧蓄力 → 1帧爆发 → 2帧恢复
+    const frameMap = [0, 0, 0, 1, 2, 2]; // 6帧循环
+    const frameIdx = frameMap[this.animFrame % frameMap.length];
+    this.sprite.setFrame(frameIdx);
+  }
+}
+</code></pre>
+</div>
+
+<!-- ═══════════════════════════════════ -->
+<!-- 附录 -->
+<!-- ═══════════════════════════════════ -->
+<h2>附录：文件结构变更</h2>
+
+<div class="card">
+<pre><code>wechat-game/
+├── 策划书_墨境棋局.html          (已有)
+├── 技术方案细化_墨境棋局.html     (已有)
+├── 设计升级_墨境棋局_v2.html      ✅ 本文档
+├── src/
+│   ├── core/
+│   │   ├── Board.ts              (已有)
+│   │   ├── Card.ts               (已有)
+│   │   ├── Deck.ts               (已有)
+│   │   └── TurnManager.ts        (已有)
+│   ├── map/
+│   │   └── MapGenerator.ts       ✅ 新增 — 路线图生成
+│   ├── events/
+│   │   └── EventDefinitions.ts   ✅ 新增 — 16个随机事件
+│   ├── shop/
+│   │   └── ShopSystem.ts         ✅ 新增 — 商店系统
+│   ├── combat/
+│   │   ├── BattleFormulas.ts     ✅ 新增 — 数值公式
+│   │   └── BattleEngine.ts       ✅ 新增 — 战斗引擎
+│   ├── cards/
+│   │   └── CardSystem.ts         ✅ 新增 — 30张卡牌数据库
+│   ├── story/
+│   │   └── ImmersionSystem.ts    ✅ 新增 — 叙事/沉浸系统
+│   └── style/
+│       ├── InkPalette.ts         ✅ 新增 — 像素水墨色板
+│       └── InkRenderer.ts        ✅ 新增 — 像素水墨渲染器
+
+本地 ComfyUI 管线:
+C:\Users\Yan Zhao\ComfyUI\           ✅ 已克隆
+├── venv/                            (安装中)
+├── models/
+│   └── checkpoints/ + loras/ + controlnet/  (需下载模型)
+├── workflows/
+│   └── pixel_ink_character.json     ✅ 工作流待创建
+└── scripts/
+    ├── generate_asset.py            ✅ 调用脚本
+    └── pixel_ink_postprocess.py     ✅ 后处理脚本
+</code></pre>
+</div>
+
+<div class="footer">
+墨境棋局 · 设计升级 v2 · 2026-07-17<br>
+配套：策划书 / 技术方案细化 v1 / 本设计升级
+</div>
+
+</body>
+</html>
