@@ -1,17 +1,9 @@
 /**
- * ShopScene.ts - 商店场景
+ * ShopScene.ts - 商店场景（水墨风）
  */
 
 import Phaser from 'phaser';
-import { CardDatabase } from '../cards/CardDatabase';
 import { GameData } from '../data/GameData';
-
-interface ShopItem {
-  name: string;
-  desc: string;
-  price: number;
-  effect: (state: any) => void;
-}
 
 export class ShopScene extends Phaser.Scene {
   private playerState!: any;
@@ -23,106 +15,184 @@ export class ShopScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.add.rectangle(195, 422, 390, 844, 0x0f0f1a);
+    const { width, height } = this.cameras.main;
 
-    this.add.text(195, 60, '商店', {
-      fontSize: '24px', color: '#ffd76b',
+    // 水墨背景
+    this.cameras.main.setBackgroundColor('#0f0a0a');
+    this.add.rectangle(width / 2, height / 2, width, height, 0x1a1510, 0.3);
+
+    // 墨迹装饰
+    for (let i = 0; i < 6; i++) {
+      const ink = this.add.circle(
+        Phaser.Math.Between(30, width - 30),
+        Phaser.Math.Between(30, height - 30),
+        Phaser.Math.Between(15, 50),
+        0x2a2520, Phaser.Math.FloatBetween(0.05, 0.15)
+      );
+      ink.setBlendMode(Phaser.BlendModes.ADD);
+    }
+
+    // 顶部状态栏
+    const hudBg = this.add.rectangle(width / 2, 40, width - 20, 32, 0x1a1a15, 0.7);
+    hudBg.setStrokeStyle(1, 0x4a3a2a);
+
+    const goldText = this.add.text(15, 40, `💰 ${this.playerState.gold}`, {
+      fontSize: '14px',
+      color: '#c8a85a',
+    }).setOrigin(0, 0.5);
+
+    // 商店标题（书法体）
+    this.add.text(width / 2, 90, '行商', {
+      fontSize: '28px',
+      fontFamily: '"STKaiti", "KaiTi", serif',
+      color: '#e8c5a5',
+      fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const goldText = this.add.text(10, 10, `金币: ${this.playerState.gold}`, {
-      fontSize: '16px', color: '#ffd76b',
-    });
+    this.add.text(width / 2, 118, '—— 奇货可居 ——', {
+      fontSize: '11px',
+      color: '#6a5a4a',
+      fontStyle: 'italic',
+    }).setOrigin(0.5);
 
     // 商品列表
-    const items: ShopItem[] = [
+    const items = [
       {
         name: '生命药水',
-        desc: '恢复 20 HP',
+        desc: '恢复20点生命',
+        detail: '瓶中药液散发着淡淡墨香',
         price: 50,
-        effect: (state) => {
+        effect: (state: any) => {
           state.hp = Math.min(state.maxHp, state.hp + 20);
         },
       },
       {
-        name: '最大生命',
-        desc: '+5 最大 HP',
+        name: '墨池精华',
+        desc: '永久增加5点最大生命',
+        detail: '凝练的墨汁蕴含深厚力量',
         price: 75,
-        effect: (state) => {
+        effect: (state: any) => {
           state.maxHp += 5;
           state.hp += 5;
         },
       },
       {
-        name: '随机卡牌',
+        name: '残卷',
         desc: '获得一张随机卡牌',
+        detail: '不知其中记载何种武学',
         price: 100,
-        effect: (state) => {
-          const cards = ['strike', 'defend', 'heavyStrike', 'cleave', 'ironSkin'];
+        effect: (state: any) => {
+          const cards = ['strike', 'defend', 'heavyStrike', 'cleave', 'ironSkin', 'quickSlash', 'doubleStrike'];
           const randomCard = cards[Math.floor(Math.random() * cards.length)];
           state.deckTemplateIds.push(randomCard);
         },
       },
     ];
 
+    const itemStartY = 160;
+    const itemGap = 120;
+
     items.forEach((item, idx) => {
-      const y = 150 + idx * 100;
+      const y = itemStartY + idx * itemGap;
 
-      const bg = this.add.rectangle(195, y, 340, 80, 0x1a2a3e);
-      bg.setStrokeStyle(1, 0x4a6a8e);
+      // 商品卡片背景
+      const cardBg = this.add.rectangle(width / 2, y, width - 40, 100, 0x1a1a15, 0.8);
+      cardBg.setStrokeStyle(1, 0x4a3a2a);
 
-      const name = this.add.text(20, y - 25, item.name, {
-        fontSize: '16px', color: '#e8d5b5',
+      // 商品名（书法体）
+      this.add.text(25, y - 30, item.name, {
+        fontSize: '16px',
+        fontFamily: '"STKaiti", "KaiTi", serif',
+        color: '#e8d5b5',
+        fontStyle: 'bold',
       });
 
-      const desc = this.add.text(20, y - 5, item.desc, {
-        fontSize: '12px', color: '#888',
+      // 描述
+      this.add.text(25, y - 8, item.desc, {
+        fontSize: '12px',
+        color: '#a8a8a0',
       });
 
-      const price = this.add.text(320, y - 15, `${item.price}G`, {
-        fontSize: '14px', color: '#ffd76b',
-      }).setOrigin(1, 0.5);
+      // 详情（小字）
+      this.add.text(25, y + 10, item.detail, {
+        fontSize: '10px',
+        color: '#6a5a4a',
+        fontStyle: 'italic',
+      });
 
-      const buyBtn = this.add.text(320, y + 10, '[ 购买 ]', {
-        fontSize: '12px', color: '#6bff8a',
-      }).setOrigin(1, 0.5);
-      buyBtn.setInteractive({ useHandCursor: true });
+      // 价格印章
+      const priceSeal = this.add.rectangle(width - 80, y - 20, 60, 28, 0x2a1a1a, 0.9);
+      priceSeal.setStrokeStyle(1, 0x6a3a2a);
 
-      buyBtn.on('pointerdown', () => {
+      this.add.text(width - 80, y - 20, `${item.price}💰`, {
+        fontSize: '11px',
+        color: '#c8a85a',
+      }).setOrigin(0.5);
+
+      // 购买按钮
+      const buyBg = this.add.rectangle(width - 80, y + 15, 60, 26, 0x2a2a20, 0.8);
+      buyBg.setStrokeStyle(1, 0x4a4a3a);
+      buyBg.setInteractive({ useHandCursor: true });
+
+      const buyText = this.add.text(width - 80, y + 15, '购买', {
+        fontSize: '11px',
+        color: '#c8a85a',
+      }).setOrigin(0.5);
+
+      buyBg.on('pointerover', () => buyBg.setFillStyle(0x3a3a2a, 0.9));
+      buyBg.on('pointerout', () => buyBg.setFillStyle(0x2a2a20, 0.8));
+
+      buyBg.on('pointerdown', () => {
         if (this.playerState.gold >= item.price) {
           this.playerState.gold -= item.price;
           item.effect(this.playerState);
           GameData.save(this.playerState);
 
-          goldText.setText(`金币: ${this.playerState.gold}`);
+          goldText.setText(`💰 ${this.playerState.gold}`);
 
-          this.add.text(195, 500, `购买了 ${item.name}`, {
-            fontSize: '14px', color: '#6bff8a',
+          // 购买成功提示
+          const successText = this.add.text(width / 2, height - 100, `已购入: ${item.name}`, {
+            fontSize: '14px',
+            color: '#6bff8a',
           }).setOrigin(0.5);
 
-          this.time.delayedCall(1000, () => {
-            this.children.list
-              .filter(c => c instanceof Phaser.GameObjects.Text && (c as any).y === 500)
-              .forEach(c => c.destroy());
+          this.tweens.add({
+            targets: successText,
+            y: height - 130,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => successText.destroy(),
           });
         } else {
-          this.add.text(195, 500, '金币不足', {
-            fontSize: '14px', color: '#ff6b7a',
+          // 金币不足提示
+          const failText = this.add.text(width / 2, height - 100, '囊中羞涩', {
+            fontSize: '14px',
+            color: '#ff6b7a',
           }).setOrigin(0.5);
 
-          this.time.delayedCall(1000, () => {
-            this.children.list
-              .filter(c => c instanceof Phaser.GameObjects.Text && (c as any).y === 500)
-              .forEach(c => c.destroy());
+          this.tweens.add({
+            targets: failText,
+            y: height - 130,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => failText.destroy(),
           });
         }
       });
     });
 
     // 离开按钮
-    const leave = this.add.text(195, 700, '[ 离开商店 ]', {
-      fontSize: '16px', color: '#888',
+    const leaveBg = this.add.rectangle(width / 2, height - 60, 120, 36, 0x1a1a15, 0.7);
+    leaveBg.setStrokeStyle(1, 0x3a3a2a);
+    leaveBg.setInteractive({ useHandCursor: true });
+
+    this.add.text(width / 2, height - 60, '离开商铺', {
+      fontSize: '14px',
+      color: '#6a5a4a',
     }).setOrigin(0.5);
-    leave.setInteractive({ useHandCursor: true });
-    leave.on('pointerdown', () => this.scene.start('MapScene'));
+
+    leaveBg.on('pointerover', () => leaveBg.setFillStyle(0x2a2a20, 0.8));
+    leaveBg.on('pointerout', () => leaveBg.setFillStyle(0x1a1a15, 0.7));
+    leaveBg.on('pointerdown', () => this.scene.start('MapScene'));
   }
 }

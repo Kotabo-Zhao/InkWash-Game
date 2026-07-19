@@ -1,0 +1,31 @@
+{
+  "name": "wechat-game",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "rollup -c --watch",
+    "build": "rollup -c",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "balance": "cd scripts && python3 simulate_balance.py",
+    "quality": "python3 scripts/quality_report.py"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "rollup": "^4.62.2",
+    "rollup-plugin-copy": "^3.5.0",
+    "tslib": "^2.8.1",
+    "typescript": "5.5",
+    "vitest": "2.0"
+  }
+}

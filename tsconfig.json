@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@core/*": ["src/core/*"],
+      "@cards/*": ["src/cards/*"],
+      "@events/*": ["src/events/*"],
+      "@map/*": ["src/map/*"],
+      "@shop/*": ["src/shop/*"],
+      "@combat/*": ["src/combat/*"],
+      "@ui/*": ["src/ui/*"],
+      "@style/*": ["src/style/*"],
+      "@debug/*": ["src/debug/*"],
+      "@tests/*": ["tests/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

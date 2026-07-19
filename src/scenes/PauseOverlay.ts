@@ -1,5 +1,5 @@
 /**
- * PauseOverlay.ts - 暂停菜单（叠加层）
+ * PauseOverlay.ts - 暂停菜单（水墨风叠加层）
  */
 
 import Phaser from 'phaser';
@@ -11,38 +11,62 @@ export class PauseOverlay extends Phaser.Scene {
   create(): void {
     const { width, height } = this.cameras.main;
 
-    // 半透明背景
+    // 半透明墨色背景
     const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
     bg.setInteractive();
 
-    // 面板
-    const panel = this.add.rectangle(width / 2, height / 2, 300, 300, 0x1a1a2e);
-    panel.setStrokeStyle(2, 0x2a2a3e);
+    // 水墨装饰
+    for (let i = 0; i < 5; i++) {
+      const ink = this.add.circle(
+        Phaser.Math.Between(30, width - 30),
+        Phaser.Math.Between(30, height - 30),
+        Phaser.Math.Between(15, 50),
+        0x2a2520, Phaser.Math.FloatBetween(0.05, 0.15)
+      );
+      ink.setBlendMode(Phaser.BlendModes.ADD);
+    }
 
-    // 标题
-    this.add.text(width / 2, height / 2 - 100, '游戏暂停', {
+    // 面板（宣纸底）
+    const panel = this.add.rectangle(width / 2, height / 2, 280, 280, 0x1a1a15, 0.95);
+    panel.setStrokeStyle(2, 0x4a3a2a);
+
+    // 标题（书法体）
+    this.add.text(width / 2, height / 2 - 100, '暂歇', {
       fontSize: '24px',
-      color: '#e8d5b5',
+      fontFamily: '"STKaiti", "KaiTi", serif',
+      color: '#e8c5a5',
+      fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // 按钮
+    // 分隔线
+    this.add.rectangle(width / 2, height / 2 - 75, 200, 1, 0x4a3a2a, 0.5);
+
+    // 按钮（水墨风）
     const buttons = [
-      { text: '继续游戏', y: height / 2 - 30, action: () => this.resumeGame() },
-      { text: '放弃战斗', y: height / 2 + 30, action: () => this.abandonBattle() },
-      { text: '返回主菜单', y: height / 2 + 90, action: () => this.returnToMenu() },
+      { text: '继续前行', y: height / 2 - 30, color: '#c8a85a', action: () => this.resumeGame() },
+      { text: '放弃战斗', y: height / 2 + 30, color: '#c85a5a', action: () => this.abandonBattle() },
+      { text: '返回主菜单', y: height / 2 + 90, color: '#8a7a6a', action: () => this.returnToMenu() },
     ];
 
     buttons.forEach(btn => {
-      const btnText = this.add.text(width / 2, btn.y, btn.text, {
-        fontSize: '18px',
-        color: '#ffd76b',
-        backgroundColor: '#2a2a3e',
-        padding: { x: 16, y: 8 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const btnBg = this.add.rectangle(width / 2, btn.y, 180, 40, 0x2a2a20, 0.8);
+      btnBg.setStrokeStyle(1, 0x4a3a2a);
+      btnBg.setInteractive({ useHandCursor: true });
 
-      btnText.on('pointerover', () => btnText.setColor('#ffffff'));
-      btnText.on('pointerout', () => btnText.setColor('#ffd76b'));
-      btnText.on('pointerdown', btn.action);
+      const btnText = this.add.text(width / 2, btn.y, btn.text, {
+        fontSize: '15px',
+        color: btn.color,
+      }).setOrigin(0.5);
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x3a3a2a, 0.9);
+        btnBg.setStrokeStyle(2, 0x6a5a4a);
+      });
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0x2a2a20, 0.8);
+        btnBg.setStrokeStyle(1, 0x4a3a2a);
+      });
+      btnBg.on('pointerdown', btn.action);
     });
   }
 

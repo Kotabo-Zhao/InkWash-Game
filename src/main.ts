@@ -11,6 +11,7 @@ import { RestScene } from './scenes/RestScene';
 import { RewardScene } from './scenes/RewardScene';
 import { SettingsOverlay } from './scenes/SettingsOverlay';
 import { PauseOverlay } from './scenes/PauseOverlay';
+import { UpgradeScene } from './scenes/UpgradeScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -33,6 +34,7 @@ const config: Phaser.Types.Core.GameConfig = {
     ShopScene,
     RestScene,
     RewardScene,
+    UpgradeScene,
     GameScene,
     ResultScene,
     SettingsOverlay,
