@@ -63,12 +63,13 @@ LOGS_DIR = PROJECT_ROOT / "logs"
 COMFYUI_SERVER = "http://127.0.0.1:8188"
 
 # 模型配置（版本管理）
+# 统一使用 SDXL 生态以确保兼容性
 MODEL_VERSION = {
     "base_model": "sd_xl_base_1.0.safetensors",
-    "style_lora": "ink_wash_style_v1.safetensors",
-    "controlnet": "control_v11p_sd15_openpose.pth",
-    "ip_adapter": "ip-adapter-plus_sd15.safetensors",
-    "vae": "vae-ft-mse-840000-ema-pruned.safetensors",
+    "style_lora": "ink_wash_style_xl_v1.safetensors",
+    "controlnet": "diffusers_xl_canny_full.safetensors",
+    "ip_adapter": "ip-adapter-plus_sdxl_vit-h.safetensors",
+    "vae": "sdxl_vae.safetensors",
     "version_hash": "",  # 运行时计算
 }
 
