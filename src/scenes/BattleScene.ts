@@ -10,7 +10,7 @@ import { DeckManager } from '../core/DeckManager';
 import { BattleEngine, BattleEvent, CardPlayResult } from '../combat/BattleEngine';
 import { Card, CardType } from '../cards/CardSystem';
 import { CardDatabase } from '../cards/CardDatabase';
-import { getEnemiesForNode } from '../data/ChapterData';
+import { getEnemiesForNode } from '../core/EnemyDatabase';
 import { GameData } from '../data/GameData';
 import { BoardBattle, PositionType, InkStoneType } from '../core/BoardBattle';
 

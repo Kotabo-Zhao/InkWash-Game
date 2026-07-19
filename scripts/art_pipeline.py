@@ -65,11 +65,11 @@ COMFYUI_SERVER = "http://127.0.0.1:8188"
 # 模型配置（版本管理）
 # 统一使用 SDXL 生态以确保兼容性
 MODEL_VERSION = {
-    "base_model": "sd_xl_base_1.0.safetensors",
-    "style_lora": "ink_wash_style_xl_v1.safetensors",
-    "controlnet": "diffusers_xl_canny_full.safetensors",
-    "ip_adapter": "ip-adapter-plus_sdxl_vit-h.safetensors",
-    "vae": "sdxl_vae.safetensors",
+    "base_model": "animagine-xl-3.1.safetensors",
+    "style_lora": "",  # 暂无水墨风格LoRA，后续添加
+    "controlnet": "",  # 暂无ControlNet，后续添加
+    "ip_adapter": "",  # 暂无IP-Adapter，后续添加
+    "vae": "",  # 使用checkpoint内置VAE
     "version_hash": "",  # 运行时计算
 }
 
@@ -83,7 +83,8 @@ SPEC_BG_HEIGHT = 600
 STYLE_CONFIG = {
     "base_prompt": "masterpiece, best quality, ink wash painting style, traditional chinese art",
     "negative_prompt": "low quality, worst quality, blurry, deformed, ugly, modern, western, photorealistic, 3d render, bright colors, saturated, cartoon, anime style, extra limbs, bad anatomy",
-    "sampler": "dpm_2m_karras",
+    "sampler": "dpmpp_2m",
+    "scheduler": "karras",
     "steps": 30,
     "cfg_scale": 7.5,
     "width": 512,
@@ -275,6 +276,28 @@ class ComfyUIClient:
                 time.sleep(1)
         return False
 
+    def get_output_filename(self, prompt_id: str) -> Optional[str]:
+        """从 history 中读取实际输出文件名"""
+        try:
+            response = self.session.get(
+                f"{self.server_url}/history/{prompt_id}",
+                timeout=10,
+            )
+            if response.status_code == 200:
+                history = response.json()
+                if prompt_id in history:
+                    entry = history[prompt_id]
+                    outputs = entry.get("outputs", {})
+                    # SaveImage 节点通常输出到 images 字段
+                    for node_id, node_output in outputs.items():
+                        if "images" in node_output:
+                            images = node_output["images"]
+                            if images:
+                                return images[0].get("filename")
+            return None
+        except Exception:
+            return None
+
     def get_image(self, prompt_id: str, filename: str) -> Optional[bytes]:
         """获取生成的图片"""
         try:
@@ -288,6 +311,29 @@ class ComfyUIClient:
             return None
         except Exception as e:
             print(f"获取图片失败: {e}")
+            return None
+
+    def get_output_filename(self, prompt_id: str) -> Optional[str]:
+        """从history中获取实际输出的文件名"""
+        try:
+            response = self.session.get(
+                f"{self.server_url}/history/{prompt_id}",
+                timeout=10,
+            )
+            if response.status_code == 200:
+                history = response.json()
+                if prompt_id in history:
+                    entry = history[prompt_id]
+                    outputs = entry.get('outputs', {})
+                    # 查找SaveImage节点的输出（通常是节点9）
+                    for node_id, node_output in outputs.items():
+                        if 'images' in node_output:
+                            images = node_output['images']
+                            if images:
+                                return images[0].get('filename')
+            return None
+        except Exception as e:
+            print(f"获取输出文件名失败: {e}")
             return None
 
 
@@ -380,18 +426,25 @@ class PromptBuilder:
         prompt = f"{self.style['base_prompt']}, landscape background, {background['name_cn']}, {background['description']}, {layer_desc}, parallax scrolling game asset, 4:3 aspect ratio"
 
         workflow = self._base_workflow(prompt)
-        workflow["4"]["inputs"]["width"] = SPEC_BG_WIDTH
-        workflow["4"]["inputs"]["height"] = SPEC_BG_HEIGHT
+        # 节点6是EmptyLatentImage，设置输出尺寸
+        workflow["6"]["inputs"]["width"] = SPEC_BG_WIDTH
+        workflow["6"]["inputs"]["height"] = SPEC_BG_HEIGHT
 
         return workflow
 
     def _base_workflow(self, prompt: str) -> Dict:
-        """基础工作流模板"""
+        """基础工作流模板
+
+        CheckpointLoaderSimple 输出:
+            - 0: MODEL
+            - 1: CLIP
+            - 2: VAE
+        """
         return {
             "3": {
                 "class_type": "KSampler",
                 "inputs": {
-                    "model": None,  # 由IP-Adapter填充
+                    "model": ["7", 0],  # MODEL from CheckpointLoaderSimple
                     "positive": ["4", 0],
                     "negative": ["5", 0],
                     "latent_image": ["6", 0],
@@ -399,21 +452,21 @@ class PromptBuilder:
                     "steps": self.style["steps"],
                     "cfg": self.style["cfg_scale"],
                     "sampler_name": self.style["sampler"],
-                    "scheduler": "normal",
+                    "scheduler": self.style["scheduler"],
                     "denoise": 1.0,
                 },
             },
             "4": {
                 "class_type": "CLIPTextEncode",
                 "inputs": {
-                    "clip": ["7", 0],
+                    "clip": ["7", 1],  # CLIP from CheckpointLoaderSimple
                     "text": prompt,
                 },
             },
             "5": {
                 "class_type": "CLIPTextEncode",
                 "inputs": {
-                    "clip": ["7", 0],
+                    "clip": ["7", 1],  # CLIP from CheckpointLoaderSimple
                     "text": self.style["negative_prompt"],
                 },
             },
@@ -435,7 +488,7 @@ class PromptBuilder:
                 "class_type": "VAEDecode",
                 "inputs": {
                     "samples": ["3", 0],
-                    "vae": ["7", 0],
+                    "vae": ["7", 2],  # VAE from CheckpointLoaderSimple
                 },
             },
             "9": {

@@ -102,8 +102,16 @@ export class GameData {
 
   /**
    * 章节升级（HP+10, AP+1）
+   * @returns true 如果成功进入下一章，false 如果已到最终章（第5章）
    */
-  static onChapterComplete(state: PlayerState): void {
+  static onChapterComplete(state: PlayerState): boolean {
+    const MAX_CHAPTERS = 5;
+    
+    if (state.currentChapter >= MAX_CHAPTERS) {
+      // 已通关最终章
+      return false;
+    }
+    
     state.currentChapter++;
     state.currentNodeFloor = 0;
     state.maxHp += 10;
@@ -112,6 +120,14 @@ export class GameData {
       state.maxAp++;
     }
     state.ap = state.maxAp;
+    return true;
+  }
+  
+  /**
+   * 检查是否已通关最终章
+   */
+  static isGameComplete(state: PlayerState): boolean {
+    return state.currentChapter >= 5;
   }
 
   /**

@@ -18,7 +18,7 @@ export class MapScene extends Phaser.Scene {
   init(): void {
     this.playerState = GameData.load() || GameData.createInitialPlayerState();
     this.mapGen = new MapGenerator();
-    this.mapGen.generate();
+    this.mapGen.generate(this.playerState.currentChapter);
   }
 
   create(): void {
@@ -63,7 +63,7 @@ export class MapScene extends Phaser.Scene {
       fontSize: '13px', color: '#c8a85a',
     }).setOrigin(0, 0.5);
 
-    this.add.text(width - 15, 64, `层 ${this.mapGen.currentFloor}/${MapGenerator.FLOORS}`, {
+    this.add.text(width - 15, 64, `层 ${this.mapGen.currentFloor}/${this.mapGen.getTotalFloors()}`, {
       fontSize: '13px', color: '#8a8a6a',
     }).setOrigin(1, 0.5);
 

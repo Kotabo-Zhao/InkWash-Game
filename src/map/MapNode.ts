@@ -3,6 +3,9 @@
  * 类似杀戮尖塔的节点地图：战斗/事件/商店/休息/BOSS
  */
 
+import { CHAPTERS } from '../data/ChapterData';
+import { generateChapterLevels, NodeType as LevelNodeType } from '../data/LevelData';
+
 export enum NodeType {
   BATTLE = 'BATTLE',
   ELITE = 'ELITE',
@@ -26,7 +29,6 @@ export interface MapNode {
  * 节点地图生成器
  */
 export class MapGenerator {
-  static readonly FLOORS = 15;
   static readonly COLS = 5;
   static readonly NODE_W = 70;
   static readonly NODE_H = 80;
@@ -36,24 +38,35 @@ export class MapGenerator {
   nodes: MapNode[] = [];
   currentFloor = 0;
   visitedNodes: Set<number> = new Set();
+  
+  private chapter = 1;
+  private totalFloors = 10;
 
-  generate(): MapNode[] {
+  generate(chapter: number = 1): MapNode[] {
+    this.chapter = chapter;
+    const chapterConfig = CHAPTERS[chapter - 1];
+    this.totalFloors = chapterConfig?.floors || 10;
+    
+    // 获取章节关卡配置
+    const levelConfigs = generateChapterLevels(chapter);
+
     this.nodes = [];
     let id = 0;
 
     // 逐层生成
-    for (let floor = 0; floor < MapGenerator.FLOORS; floor++) {
+    for (let floor = 0; floor < this.totalFloors; floor++) {
       const nodesInFloor = this.getNodesForFloor(floor);
+      const levelConfig = levelConfigs[floor];
 
       for (let i = 0; i < nodesInFloor; i++) {
         const node: MapNode = {
           id: id++,
-          type: this.getNodeType(floor),
+          type: this.getNodeType(floor, levelConfig?.type),
           floor,
           col: i,
           connections: [],
           x: MapGenerator.PADDING_X + i * MapGenerator.NODE_W,
-          y: MapGenerator.PADDING_Y + (MapGenerator.FLOORS - 1 - floor) * MapGenerator.NODE_H,
+          y: MapGenerator.PADDING_Y + (this.totalFloors - 1 - floor) * MapGenerator.NODE_H,
         };
         this.nodes.push(node);
       }
@@ -81,18 +94,36 @@ export class MapGenerator {
 
     return this.nodes;
   }
+  
+  getTotalFloors(): number {
+    return this.totalFloors;
+  }
 
   private getNodesForFloor(floor: number): number {
     if (floor === 0) return 2;
-    if (floor === MapGenerator.FLOORS - 1) return 1; // BOSS
-    if (floor === MapGenerator.FLOORS - 2) return 2; // BOSS 前
+    if (floor === this.totalFloors - 1) return 1; // BOSS
+    if (floor === this.totalFloors - 2) return 2; // BOSS 前
     return 3 + Math.floor(Math.random() * 2); // 3-4 个
   }
 
-  private getNodeType(floor: number): NodeType {
+  private getNodeType(floor: number, levelNodeType?: LevelNodeType): NodeType {
+    // 优先使用关卡配置的节点类型
+    if (levelNodeType) {
+      switch (levelNodeType) {
+        case 'BATTLE': return NodeType.BATTLE;
+        case 'ELITE': return NodeType.ELITE;
+        case 'BOSS': return NodeType.BOSS;
+        case 'EVENT': return NodeType.EVENT;
+        case 'SHOP': return NodeType.SHOP;
+        case 'REST': return NodeType.REST;
+        case 'TREASURE': return NodeType.EVENT; // 宝箱映射为事件
+      }
+    }
+    
+    // 回退到基于楼层的默认逻辑
     if (floor === 0) return NodeType.BATTLE;
-    if (floor === MapGenerator.FLOORS - 1) return NodeType.BOSS;
-    if (floor === MapGenerator.FLOORS - 2) return NodeType.REST;
+    if (floor === this.totalFloors - 1) return NodeType.BOSS;
+    if (floor === this.totalFloors - 2) return NodeType.REST;
 
     const r = Math.random();
     if (r < 0.55) return NodeType.BATTLE;

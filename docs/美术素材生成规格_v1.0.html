@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>墨境棋局 — 美术素材生成规格文档 v1.0</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fafaf7; color: #1a1a1a; font-family: system-ui, sans-serif; line-height: 1.7; padding: 32px; max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 28px; border-bottom: 3px solid #2c2c2c; padding-bottom: 8px; margin-bottom: 16px; }
+h2 { font-size: 22px; margin-top: 40px; border-bottom: 2px solid #ddd; padding-bottom: 6px; color: #2c2c2c; }
+h3 { font-size: 17px; margin-top: 24px; color: #444; }
+h4 { font-size: 15px; margin-top: 16px; color: #555; }
+.meta { background: #f0f0ea; padding: 12px 16px; border-radius: 6px; margin-bottom: 24px; font-size: 13px; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; }
+th { background: #f5f5f0; font-weight: 600; }
+tr:nth-child(even) { background: #fafaf7; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-p0 { background: #fee; color: #c00; }
+.badge-p1 { background: #ffe; color: #a80; }
+.badge-p2 { background: #efe; color: #080; }
+.tree { background: #f8f8f5; padding: 16px; border-radius: 8px; font-family: Consolas, monospace; font-size: 13px; line-height: 1.8; white-space: pre; overflow-x: auto; }
+.spec-card { background: #fff; border: 1px solid #e0e0d8; border-radius: 8px; padding: 16px; margin: 16px 0; }
+.spec-card h4 { margin-top: 0; }
+.prompt-box { background: #f5f5f0; border-left: 3px solid #888; padding: 10px 14px; margin: 8px 0; font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap; }
+code { background: #f0f0ea; padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: Consolas, monospace; }
+.flow-box { background: #f0f4ff; border: 1px solid #c0d0f0; border-radius: 8px; padding: 16px; margin: 12px 0; }
+.flow-box .title { font-weight: 600; color: #336; margin-bottom: 8px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+.summary-item { background: #f8f8f5; padding: 16px; border-radius: 8px; text-align: center; }
+.summary-item .num { font-size: 32px; font-weight: 700; color: #333; }
+.summary-item .label { font-size: 12px; color: #666; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h1>墨境棋局 — 美术素材生成规格文档 v1.0</h1>
+
+<div class="meta">
+<strong>文档版本:</strong> v1.0 | <strong>创建日期:</strong> 2026-07-19 | <strong>项目版本:</strong> v0.2.4-alpha<br>
+<strong>目标平台:</strong> 微信小游戏 | <strong>渲染引擎:</strong> Phaser 3.80 (Canvas 2D)<br>
+<strong>美术风格:</strong> Q版水墨 (Chibi + Ink Wash) | <strong>ComfyUI版本:</strong> v0.28.0<br>
+<strong>基础模型:</strong> Animagine XL 3.1 (SDXL) + VNCCS LoRA | <strong>姿态控制:</strong> ControlNet OpenPose + IPAdapter
+</div>
+
+<div class="summary-grid">
+<div class="summary-item"><div class="num">7</div><div class="label">素材大类</div></div>
+<div class="summary-item"><div class="num">68</div><div class="label">具体素材项</div></div>
+<div class="summary-item"><div class="num">250+</div><div class="label">预计生成图数</div></div>
+<div class="summary-item"><div class="num">5</div><div class="label">ComfyUI工作流</div></div>
+</div>
+
+<h2>一、素材分类总览</h2>
+
+<div class="tree">墨境棋局 美术素材体系
+├── A. 角色精灵 (4角色 x 6动作 x 多帧 = 48+帧)
+│   ├── 墨言 (主角/剑客) — idle, attack, defend, hurt, walk, victory
+│   ├── 铁墨 (盾卫) — idle, attack, defend, hurt, walk, victory
+│   ├── 凌锋 (刺客) — idle, attack, defend, hurt, walk, victory
+│   └── 墨玄 (法师) — idle, attack, defend, hurt, walk, victory
+│
+├── B. 敌人精灵 (7种 x 4动作 = 28+帧)
+│   ├── 普通: 墨兽, 墨狼, 影刺客, 墨元素
+│   ├── 精英: 影武者
+│   └── Boss: 墨龙王, 墨渊守护者
+│
+├── C. 场景背景 (3章 x 4层 = 12张)
+│   ├── 第一章「墨林迷踪」— 天空/远山/竹林/前景
+│   ├── 第二章「影武者殿堂」— 天空/殿堂/回廊/前景
+│   └── 第三章「墨渊深处」— 暗天/深渊/岩石/前景
+│
+├── D. 卡牌美术 (10种 x 2尺寸 = 20张)
+│   ├── 攻击卡: 斩击, 重斩, 快斩, 横扫, 连斩, 破釜沉舟
+│   └── 技能卡: 防御, 铁布衫, 冥想, 治愈之光
+│
+├── E. UI元素 (约15个组件)
+│   ├── 按钮类: 印章风主按钮, 开始/暂停/确认
+│   ├── 面板类: 角色信息面板, 卡牌选择框, 墨压槽
+│   └── 图标类: HP图标, 护甲图标, 状态图标
+│
+├── F. 道具素材 (约8种)
+│   ├── 游戏道具: 金币(墨玉), 药水(回血), 钥匙, 宝箱
+│   └── 装饰道具: 墨笔, 画卷, 印章, 卷轴
+│
+└── G. 特效素材 (约12种)
+    ├── 战斗特效: 墨迹飞溅, 剑气斩击, 护盾, 治愈光环
+    ├── 环境特效: 飘落的墨叶, 飘散的水墨粒子, 烟雾
+    └── 技能特效: 力量提升, 中毒, 燃烧, 冰冻</div>
+
+<h2>二、角色精灵素材</h2>
+
+<h3>2.1 角色清单与外观定义</h3>
+
+<table>
+<tr><th>角色</th><th>职业</th><th>外观关键词</th><th>配色方案</th><th>尺寸</th><th>优先级</th></tr>
+<tr><td><strong>墨言</strong></td><td>剑客/主角</td><td>白衣少年, 黑色腰带, 长发束起, 手持墨剑, 水墨飘逸</td><td>白+黑+朱红点缀</td><td>128x128 px/帧</td><td><span class="badge badge-p0">P0</span></td></tr>
+<tr><td><strong>铁墨</strong></td><td>盾卫</td><td>壮硕体型, 持盾, 铠甲纹理, 沉稳站姿</td><td>灰墨+暗铁色+金边</td><td>128x128 px/帧</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td><strong>凌锋</strong></td><td>刺客</td><td>瘦削体型, 面罩遮面, 双刃, 敏捷姿态</td><td>深灰+紫色+银色</td><td>128x128 px/帧</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td><strong>墨玄</strong></td><td>法师</td><td>长袍飘逸, 持墨笔/法器, 发丝浮动, 墨气环绕</td><td>黑墨+金色+蓝光</td><td>128x128 px/帧</td><td><span class="badge badge-p1">P1</span></td></tr>
+</table>
+
+<h3>2.2 动作帧规格</h3>
+
+<table>
+<tr><th>动作</th><th>帧数</th><th>循环</th><th>描述</th><th>关键视觉要素</th></tr>
+<tr><td>idle</td><td>2-4帧</td><td>循环</td><td>待机/站立</td><td>轻微呼吸起伏, 衣角飘动, 武器自然下垂</td></tr>
+<tr><td>attack</td><td>4-6帧</td><td>单次</td><td>攻击动作</td><td>武器挥动轨迹, 墨迹飞溅, 身体前倾</td></tr>
+<tr><td>defend</td><td>1-2帧</td><td>单次</td><td>防御姿态</td><td>护盾/武器交叉, 身体微蹲, 水墨护盾特效</td></tr>
+<tr><td>hurt</td><td>2-3帧</td><td>单次</td><td>受击反馈</td><td>身体后仰, 红色墨点(血), 抖动</td></tr>
+<tr><td>walk</td><td>4-6帧</td><td>循环</td><td>行走</td><td>步伐交替, 衣摆摆动, 自然摆臂</td></tr>
+<tr><td>victory</td><td>1-2帧</td><td>单次</td><td>胜利姿势</td><td>举武器/挥毫, 墨带飘扬, 得意表情</td></tr>
+</table>
+
+<h3>2.3 生成规格</h3>
+
+<div class="spec-card">
+<h4>生成参数 (ComfyUI txt2img)</h4>
+<table>
+<tr><th>参数</th><th>值</th><th>说明</th></tr>
+<tr><td>Base Model</td><td><code>animagine-xl-3.1.safetensors</code></td><td>二次元SDXL, 角色质量高</td></tr>
+<tr><td>LoRA (身份)</td><td><code>VNCCS/vn_character_sheet_v4</code></td><td>角色一致性, strength=0.9</td></tr>
+<tr><td>LoRA (表情)</td><td><code>mimimeter.safetensors</code></td><td>表情控制, strength=0.3</td></tr>
+<tr><td>ControlNet</td><td><code>xinsir_openpose_sdxl.safetensors</code></td><td>姿态精确控制, strength=0.85</td></tr>
+<tr><td>IPAdapter</td><td><code>ip-adapter-plus_sdxl_vit-h</code></td><td>风格迁移, weight=0.80</td></tr>
+<tr><td>参考风格图</td><td><code>reference_style.png</code></td><td>水墨风格锚定</td></tr>
+<tr><td>尺寸 (角色表)</td><td>2048 x 1536</td><td>出多pose角色表</td></tr>
+<tr><td>尺寸 (单帧)</td><td>768 x 1024</td><td>单动作帧原始输出</td></tr>
+<tr><td>Steps</td><td>25</td><td>质量与速度平衡</td></tr>
+<tr><td>CFG Scale</td><td>6.5</td><td>适中的prompt遵循度</td></tr>
+<tr><td>Sampler</td><td>dpmpp_2m + karras</td><td>SDXL推荐采样器</td></tr>
+<tr><td>Seed</td><td>777 (主角), 2024 (法师)</td><td>固定seed确保可复现</td></tr>
+</table>
+
+<h4>正向Prompt模板</h4>
+<div class="prompt-box">masterpiece, best quality, chibi character, ink wash painting style,
+sumi-e, traditional chinese art,
+{角色特定描述}, {动作描述},
+full body, dynamic pose, ink splatter accents,
+vermillion red details, brush stroke edges,
+white background, clean lines,
+game sprite, 2d character, pixel-ready</div>
+
+<h4>反向Prompt</h4>
+<div class="prompt-box">low quality, worst quality, blurry, deformed, ugly, modern,
+western, photorealistic, 3d render, bright saturated colors,
+anime style (generic), extra limbs, bad anatomy, bad hands,
+chinese text, japanese text, kanji, letter, alphabet,
+writing, calligraphy, inscription, signature, watermark,
+multiple views, character sheet (当生成单帧时),
+nsfw, nude, revealing clothing</div>
+</div>
+
+<h3>2.4 后处理流程</h3>
+
+<div class="flow-box">
+<div class="title">后处理管线 (Python脚本)</div>
+1. <strong>角色表裁切</strong> &rarr; <code>sprite_selector.py</code> (10维评分, 凸包mask, 自动选最佳帧)<br>
+2. <strong>去背景</strong> &rarr; <code>rembg</code> (GPU加速, 输出RGBA透明PNG)<br>
+3. <strong>缩放</strong> &rarr; Pillow resize 至 128x128px (Lanczos插值)<br>
+4. <strong>精灵表打包</strong> &rarr; 拼合为单张精灵表PNG (动作x方向)<br>
+5. <strong>验证</strong> &rarr; 自动检测边缘纯净度(&gt;95%透明), 角色完整性
+</div>
+
+<h2>三、场景背景素材</h2>
+
+<h3>3.1 场景清单</h3>
+
+<table>
+<tr><th>章节</th><th>场景名</th><th>图层</th><th>尺寸</th><th>关键视觉</th><th>优先级</th></tr>
+<tr><td rowspan="4">第一章 墨林迷踪</td><td rowspan="4">竹林秘境</td><td>L1 天空</td><td>800x600</td><td>淡墨渐变天空, 远云</td><td rowspan="4"><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>L2 远山</td><td>800x600</td><td>水墨远山剪影, 雾气</td></tr>
+<tr><td>L3 竹林中景</td><td>800x600</td><td>密集竹林, 地面路径</td></tr>
+<tr><td>L4 前景</td><td>800x600</td><td>近处竹叶, 墨迹飞溅装饰</td></tr>
+
+<tr><td rowspan="4">第二章 影武者殿堂</td><td rowspan="4">暗影殿堂</td><td>L1 天空</td><td>800x600</td><td>暗紫天空, 月光</td><td rowspan="4"><span class="badge badge-p2">P2</span></td></tr>
+<tr><td>L2 殿堂</td><td>800x600</td><td>日式殿堂轮廓, 灯笼</td></tr>
+<tr><td>L3 回廊</td><td>800x600</td><td>石柱回廊, 阴影</td></tr>
+<tr><td>L4 前景</td><td>800x600</td><td>近处栏杆, 飘散花瓣</td></tr>
+
+<tr><td rowspan="4">第三章 墨渊深处</td><td rowspan="4">墨渊深渊</td><td>L1 暗天</td><td>800x600</td><td>漆黑天空, 墨色漩涡</td><td rowspan="4"><span class="badge badge-p2">P2</span></td></tr>
+<tr><td>L2 深渊</td><td>800x600</td><td>深渊裂缝, 墨气升腾</td></tr>
+<tr><td>L3 岩石</td><td>800x600</td><td>嶙峋岩石, 枯树</td></tr>
+<tr><td>L4 前景</td><td>800x600</td><td>近处岩石, 墨色藤蔓</td></tr>
+</table>
+
+<h3>3.2 场景生成规格</h3>
+
+<div class="spec-card">
+<h4>生成参数</h4>
+<table>
+<tr><th>参数</th><th>值</th></tr>
+<tr><td>Base Model</td><td><code>animagine-xl-3.1.safetensors</code></td></tr>
+<tr><td>IPAdapter</td><td><code>ip-adapter-plus_sdxl_vit-h</code>, weight=0.85</td></tr>
+<tr><td>尺寸</td><td>800 x 600</td></tr>
+<tr><td>Steps</td><td>30</td></tr>
+<tr><td>CFG Scale</td><td>7.5</td></tr>
+<tr><td>Sampler</td><td>dpmpp_2m + karras</td></tr>
+<tr><td>Seed</td><td>Ch1=100, Ch2=200, Ch3=300</td></tr>
+</table>
+
+<h4>第一章 Prompt</h4>
+<div class="prompt-box">masterpiece, best quality, ink wash painting, sumi-e,
+chinese landscape, bamboo forest, misty mountains,
+traditional chinese art, watercolor background,
+soft ink gradients, ethereal atmosphere,
+layered parallax game background, side-scrolling,
+pale ink sky, distant mountains silhouette,
+dense bamboo grove middle ground, foreground bamboo leaves,
+game scene, 2d platformer background, vertical layers</div>
+
+<h4>第二章 Prompt</h4>
+<div class="prompt-box">masterpiece, best quality, ink wash painting, sumi-e,
+dark japanese palace, moonlit night, purple sky,
+traditional chinese art, watercolor background,
+stone pillars corridor, paper lanterns glowing,
+shadow atmosphere, mysterious ambiance,
+layered parallax game background, side-scrolling</div>
+
+<h4>第三章 Prompt</h4>
+<div class="prompt-box">masterpiece, best quality, ink wash painting, sumi-e,
+dark abyss, ink vortex sky, black and dark blue,
+traditional chinese art, watercolor background,
+jagged rocks, dead trees, ink mist rising,
+ominous atmosphere, deep void,
+layered parallax game background, side-scrolling</div>
+</div>
+
+<h2>四、卡牌美术素材</h2>
+
+<h3>4.1 卡牌清单</h3>
+
+<table>
+<tr><th>卡牌名</th><th>类型</th><th>视觉关键词</th><th>主色调</th><th>尺寸</th></tr>
+<tr><td>斩击</td><td>攻击</td><td>墨色剑气横斩, 凌厉笔触</td><td>黑墨+朱红</td><td>240x320</td></tr>
+<tr><td>重斩</td><td>攻击</td><td>巨力下劈, 地面裂开, 墨花四溅</td><td>深墨+赤红</td><td>240x320</td></tr>
+<tr><td>快斩</td><td>攻击</td><td>残影剑光, 速度线条</td><td>浅墨+银色</td><td>240x320</td></tr>
+<tr><td>横扫</td><td>攻击</td><td>360度剑气环, 多敌受伤</td><td>黑墨+金色</td><td>240x320</td></tr>
+<tr><td>连斩</td><td>攻击</td><td>双剑交叉, 连续斩击残影</td><td>深墨+紫色</td><td>240x320</td></tr>
+<tr><td>破釜沉舟</td><td>攻击</td><td>破碎的锅釜, 燃烧的墨焰</td><td>赤红+焦黑</td><td>240x320</td></tr>
+<tr><td>防御</td><td>技能</td><td>水墨圆盾, 墨迹防护圈</td><td>蓝墨+白色</td><td>240x320</td></tr>
+<tr><td>铁布衫</td><td>技能</td><td>金色铠甲纹理, 坚不可摧</td><td>金色+灰墨</td><td>240x320</td></tr>
+<tr><td>冥想</td><td>能力</td><td>莲花座, 墨气环绕, 禅意</td><td>紫墨+金光</td><td>240x320</td></tr>
+<tr><td>治愈之光</td><td>技能</td><td>温暖墨光, 莲花绽放, 生机</td><td>绿墨+暖光</td><td>240x320</td></tr>
+</table>
+
+<div class="spec-card">
+<h4>卡牌生成参数</h4>
+<table>
+<tr><th>参数</th><th>值</th></tr>
+<tr><td>Base Model</td><td><code>animagine-xl-3.1.safetensors</code></td></tr>
+<tr><td>IPAdapter</td><td>weight=0.75</td></tr>
+<tr><td>尺寸</td><td>240 x 320</td></tr>
+<tr><td>Steps / CFG</td><td>28 / 7.0</td></tr>
+</table>
+
+<h4>卡牌通用Prompt</h4>
+<div class="prompt-box">masterpiece, best quality, ink wash painting, sumi-e,
+{卡牌特定视觉描述},
+card art illustration, centered composition,
+traditional chinese art style,
+dynamic action, dramatic lighting,
+vermillion accents on ink background,
+game card, collectible card art,
+clean background (for card frame overlay)</div>
+</div>
+
+<h2>五、敌人精灵素材</h2>
+
+<table>
+<tr><th>敌人</th><th>类型</th><th>外观关键词</th><th>尺寸</th><th>动作</th><th>优先级</th></tr>
+<tr><td>墨兽</td><td>普通</td><td>水墨化形的野兽, 四足, 墨色毛发飘散</td><td>96x96</td><td>idle/attack/hurt/dead</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>墨狼</td><td>普通</td><td>狼形墨兽, 獠牙, 银灰色毛皮</td><td>96x96</td><td>idle/attack/hurt/dead</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>影刺客</td><td>普通</td><td>暗影人形, 面罩, 双匕首, 半透明</td><td>96x96</td><td>idle/attack/hurt/dead</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>墨元素</td><td>普通</td><td>墨汁凝成的元素体, 无定形, 流动</td><td>96x96</td><td>idle/attack/hurt/dead</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>影武者</td><td>精英</td><td>武士铠甲, 持太刀, 暗紫色气场</td><td>128x128</td><td>idle/attack/hurt/dead</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>墨龙王</td><td>Boss</td><td>巨龙形态, 水墨鳞片, 巨大体型, 威严</td><td>256x256</td><td>idle/attack/hurt/dead</td><td><span class="badge badge-p0">P0</span></td></tr>
+<tr><td>墨渊守护者</td><td>Boss</td><td>深渊巨物, 多触手, 墨色核心发光</td><td>256x256</td><td>idle/attack/hurt/dead</td><td><span class="badge badge-p0">P0</span></td></tr>
+</table>
+
+<h2>六、UI界面素材</h2>
+
+<table>
+<tr><th>元素</th><th>描述</th><th>尺寸</th><th>生成方式</th><th>优先级</th></tr>
+<tr><td>主按钮</td><td>印章风圆形按钮, 红底金字</td><td>120x120</td><td>txt2img</td><td><span class="badge badge-p0">P0</span></td></tr>
+<tr><td>小按钮</td><td>方形印章按钮</td><td>64x64</td><td>txt2img</td><td><span class="badge badge-p0">P0</span></td></tr>
+<tr><td>HP条</td><td>墨色进度条, 红色填充</td><td>200x24</td><td>代码绘制</td><td><span class="badge badge-p0">P0</span></td></tr>
+<tr><td>墨压槽</td><td>竖向墨柱, 积累到满释放</td><td>32x200</td><td>代码绘制</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>角色面板</td><td>卷轴风信息面板</td><td>300x400</td><td>txt2img</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>卡牌边框</td><td>水墨风格卡牌外框</td><td>260x340</td><td>txt2img</td><td><span class="badge badge-p0">P0</span></td></tr>
+<tr><td>棋盘格子</td><td>5x5棋盘格纹理</td><td>64x64/格</td><td>代码绘制</td><td><span class="badge badge-p0">P0</span></td></tr>
+<tr><td>状态图标</td><td>Buff/Debuff小图标</td><td>32x32</td><td>txt2img(批量)</td><td><span class="badge badge-p2">P2</span></td></tr>
+</table>
+
+<h2>七、道具与特效素材</h2>
+
+<h3>7.1 道具清单</h3>
+
+<table>
+<tr><th>道具</th><th>描述</th><th>尺寸</th><th>生成方式</th><th>优先级</th></tr>
+<tr><td>墨玉(金币)</td><td>墨色圆形玉币, 金色文字</td><td>48x48</td><td>txt2img</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>回血药水</td><td>墨色瓶罐, 红色药液</td><td>48x48</td><td>txt2img</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>钥匙</td><td>水墨风钥匙, 古铜色</td><td>48x48</td><td>txt2img</td><td><span class="badge badge-p2">P2</span></td></tr>
+<tr><td>宝箱</td><td>水墨风宝箱, 木质+铜锁</td><td>64x64</td><td>txt2img</td><td><span class="badge badge-p2">P2</span></td></tr>
+</table>
+
+<h3>7.2 特效清单</h3>
+
+<table>
+<tr><th>特效</th><th>描述</th><th>帧数</th><th>尺寸</th><th>生成方式</th><th>优先级</th></tr>
+<tr><td>墨迹飞溅</td><td>攻击命中时的墨花飞溅</td><td>6-8帧</td><td>128x128</td><td>txt2img + AnimateDiff</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>剑气斩击</td><td>剑挥出的弧形墨迹</td><td>4帧</td><td>128x64</td><td>txt2img</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>护盾</td><td>水墨圆盾防护效果</td><td>3帧</td><td>96x96</td><td>txt2img</td><td><span class="badge badge-p1">P1</span></td></tr>
+<tr><td>治愈光环</td><td>绿色墨光上升</td><td>6帧</td><td>96x96</td><td>txt2img</td><td><span class="badge badge-p2">P2</span></td></tr>
+<tr><td>飘叶</td><td>环境装饰, 墨叶飘落</td><td>8帧</td><td>32x32</td><td>txt2img</td><td><span class="badge badge-p2">P2</span></td></tr>
+<tr><td>墨粒子</td><td>水墨飘散粒子</td><td>4帧</td><td>16x16</td><td>代码生成</td><td><span class="badge badge-p2">P2</span></td></tr>
+</table>
+
+<h2>八、ComfyUI工作流总览</h2>
+
+<h3>8.1 工作流-素材类型映射</h3>
+
+<table>
+<tr><th>工作流文件</th><th>用途</th><th>核心节点</th><th>适用素材</th></tr>
+<tr><td><code>chibi_character_sheet.json</code></td><td>角色表生成</td><td>Animagine XL + VNCCS LoRA + IPAdapter(风格)</td><td>角色精灵 (多pose)</td></tr>
+<tr><td><code>chibi_pose_control.json</code></td><td>精确姿态控制</td><td>Animagine XL + VNCCS LoRA + ControlNet OpenPose</td><td>角色精灵 (单帧精确动作)</td></tr>
+<tr><td><code>chibi_sd15_action.json</code></td><td>SD1.5动作帧</td><td>Counterfeit SD1.5 + OpenPose CN + Lineart CN + IPAdapter FaceID</td><td>角色精灵 (赛璐璐风格备选)</td></tr>
+<tr><td><code>anim_cn_16poses.json</code></td><td>16帧动画序列</td><td>Counterfeit + AnimateDiff + 逐帧ControlNet</td><td>攻击动画/连续动作</td></tr>
+<tr><td><code>chibi_ink_txt2img.json</code></td><td>场景/道具/特效</td><td>Animagine XL + IPAdapter(风格)</td><td>场景背景, 道具, UI, 特效</td></tr>
+</table>
+
+<h3>8.2 工作流选择决策树</h3>
+
+<div class="tree">需要生成素材?
+|
++-- 是角色精灵?
+|   +-- 多pose参考 --&gt; chibi_character_sheet.json
+|   +-- 精确单帧动作 --&gt; chibi_pose_control.json (+ ControlNet)
+|   +-- 连续动作序列 --&gt; anim_cn_16poses.json (AnimateDiff)
+|
++-- 是场景背景? --&gt; chibi_ink_txt2img.json (高分辨率)
++-- 是卡牌插画? --&gt; chibi_ink_txt2img.json (240x320)
++-- 是敌人精灵? --&gt; chibi_character_sheet.json (调整prompt)
++-- 是UI元素?
+|   +-- 按钮/面板 --&gt; txt2img 或 代码绘制
+|   +-- 进度条/格子 --&gt; 代码绘制 (Phaser Graphics)
++-- 是道具/特效?
+    +-- 静态 --&gt; txt2img (小尺寸)
+    +-- 动画 --&gt; AnimateDiff 或 代码粒子</div>
+
+<h2>九、质量验收标准</h2>
+
+<h3>9.1 角色精灵</h3>
+
+<table>
+<tr><th>验收项</th><th>标准</th><th>检测方法</th></tr>
+<tr><td>背景纯净度</td><td>边缘像素 &gt;95% 为纯白/透明</td><td>rembg去背后自动检测</td></tr>
+<tr><td>角色完整性</td><td>全身可见, 宽高比 0.4-1.2</td><td>sprite_selector.py 凸包检测</td></tr>
+<tr><td>风格一致性</td><td>HSV直方图相关 &gt;0.85</td><td>Python HSV对比脚本</td></tr>
+<tr><td>动作可读性</td><td>评分 &gt;75分 (10维评分)</td><td>sprite_selector.py 自动评分</td></tr>
+<tr><td>边缘清晰度</td><td>Sobel梯度 &gt;阈值</td><td>自动检测</td></tr>
+<tr><td>文字/伪影</td><td>无可见文字/水印</td><td>顶部水平结构检测</td></tr>
+</table>
+
+<h3>9.2 场景背景</h3>
+
+<table>
+<tr><th>验收项</th><th>标准</th></tr>
+<tr><td>尺寸</td><td>800x600</td></tr>
+<tr><td>图层分离</td><td>各层独立, 可单独视差滚动</td></tr>
+<tr><td>风格一致</td><td>3章色调统一</td></tr>
+<tr><td>无伪影</td><td>无接缝/拉伸/重复纹理</td></tr>
+</table>
+
+<h3>9.3 卡牌</h3>
+
+<table>
+<tr><th>验收项</th><th>标准</th></tr>
+<tr><td>尺寸</td><td>240x320 px</td></tr>
+<tr><td>构图</td><td>主体居中, 四周留白</td></tr>
+<tr><td>视觉辨识</td><td>缩小至120x160仍可辨识</td></tr>
+<tr><td>风格统一</td><td>所有卡牌色调/笔触一致</td></tr>
+</table>
+
+<h2>十、版本管理与迭代流程</h2>
+
+<div class="flow-box">
+<div class="title">版本命名规则</div>
+<code>{素材类型}_{角色/场景名}_{动作}_{版本号}_{seed}_{日期}</code><br>
+示例: <code>char_swordsman_idle_v3_s777_20260719.png</code>
+</div>
+
+<table>
+<tr><th>触发条件</th><th>更新动作</th><th>负责人</th></tr>
+<tr><td>新增素材需求</td><td>本文档新增对应规格说明</td><td>AI</td></tr>
+<tr><td>生成参数调整</td><td>更新参数值 + 记录变更原因</td><td>AI</td></tr>
+<tr><td>工作流变更</td><td>更新工作流映射 + 保存新JSON</td><td>AI</td></tr>
+<tr><td>验收标准调整</td><td>更新标准值 + 记录历史版本</td><td>AI + 用户确认</td></tr>
+<tr><td>美术风格变更</td><td>全文档审核 + 更新风格定义</td><td>AI + 用户确认</td></tr>
+</table>
+
+<h2>附录A：Prompt模板库</h2>
+
+<h3>A.1 风格前缀 (所有素材共用)</h3>
+<div class="prompt-box">masterpiece, best quality, ink wash painting style, sumi-e,
+traditional chinese art, watercolor aesthetic,
+vermillion red accents, brush stroke edges,
+game asset, 2d sprite</div>
+
+<h3>A.2 反向Prompt (所有素材共用)</h3>
+<div class="prompt-box">low quality, worst quality, blurry, deformed, ugly,
+modern, western, photorealistic, 3d render,
+bright saturated colors, generic anime,
+extra limbs, bad anatomy, bad hands,
+text, watermark, signature, japanese kanji,
+nsfw, multiple views</div>
+
+<h3>A.3 角色Prompt</h3>
+<div class="prompt-box">{风格前缀},
+chibi character, {角色外观关键词},
+{动作描述: standing/attacking/defending pose},
+full body, dynamic pose, ink splatter accents,
+white background, clean lines, game sprite</div>
+
+<h3>A.4 场景Prompt</h3>
+<div class="prompt-box">{风格前缀},
+{场景描述: bamboo forest/dark palace/deep abyss},
+layered parallax game background, side-scrolling view,
+{具体图层},
+ethereal atmosphere, soft ink gradients,
+game scene, no characters</div>
+
+<h3>A.5 卡牌Prompt</h3>
+<div class="prompt-box">{风格前缀},
+{卡牌视觉描述},
+card art illustration, centered composition,
+dynamic action, dramatic lighting,
+clean background for card frame overlay</div>
+
+<h3>A.6 道具Prompt</h3>
+<div class="prompt-box">{风格前缀},
+{道具描述},
+game item icon, centered, white background,
+clean design, recognizable at small size</div>
+
+<h2>附录B：ComfyUI节点参数速查</h2>
+
+<h3>B.1 关键节点参数</h3>
+
+<table>
+<tr><th>参数</th><th>角色精灵</th><th>场景背景</th><th>卡牌</th><th>敌人</th><th>道具</th></tr>
+<tr><td>Steps</td><td>25</td><td>30</td><td>28</td><td>25</td><td>20</td></tr>
+<tr><td>CFG</td><td>6.5</td><td>7.5</td><td>7.0</td><td>6.5</td><td>6.0</td></tr>
+<tr><td>Sampler</td><td>dpmpp_2m</td><td>dpmpp_2m</td><td>dpmpp_2m</td><td>dpmpp_2m</td><td>dpmpp_2m</td></tr>
+<tr><td>Scheduler</td><td>karras</td><td>karras</td><td>karras</td><td>karras</td><td>karras</td></tr>
+<tr><td>VNCCS LoRA</td><td>0.9</td><td>-</td><td>-</td><td>0.85</td><td>-</td></tr>
+<tr><td>ControlNet</td><td>0.85</td><td>-</td><td>-</td><td>0.80</td><td>-</td></tr>
+<tr><td>IPAdapter</td><td>0.80</td><td>0.85</td><td>0.75</td><td>0.80</td><td>0.70</td></tr>
+</table>
+
+<h3>B.2 输出尺寸速查</h3>
+
+<table>
+<tr><th>素材类型</th><th>生成尺寸</th><th>最终尺寸</th><th>缩放方式</th></tr>
+<tr><td>角色帧 (普通)</td><td>768x1024</td><td>128x128</td><td>Lanczos + rembg</td></tr>
+<tr><td>角色帧 (Boss)</td><td>1024x1024</td><td>256x256</td><td>Lanczos</td></tr>
+<tr><td>敌人帧</td><td>768x768</td><td>96x96</td><td>Lanczos</td></tr>
+<tr><td>场景背景</td><td>800x600</td><td>800x600</td><td>直接</td></tr>
+<tr><td>卡牌</td><td>240x320</td><td>240x320</td><td>无缩放</td></tr>
+<tr><td>UI按钮</td><td>120x120</td><td>120x120</td><td>无缩放</td></tr>
+<tr><td>道具</td><td>48x48</td><td>48x48</td><td>无缩放</td></tr>
+<tr><td>特效帧</td><td>128x128</td><td>128x128</td><td>无缩放</td></tr>
+</table>
+
+<div class="meta" style="margin-top:40px; text-align:center;">
+<strong>文档版本:</strong> v1.0 | <strong>最后更新:</strong> 2026-07-19 | <strong>维护者:</strong> WorkBuddy AI | <strong>ComfyUI版本:</strong> v0.28.0
+</div>
+
+</body>
+</html>
